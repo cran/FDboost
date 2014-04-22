@@ -1,0 +1,81 @@
+\name{mstop.validateFDboost}
+\alias{mstop.validateFDboost}
+\alias{plot.validateFDboost}
+\alias{plotPredCoef}
+\title{Methods for objects of class validateFDboost}
+\usage{
+  \method{mstop}{validateFDboost} (object,
+    riskopt = c("mean", "median"), ...)
+
+  \method{plot}{validateFDboost} (x,
+    riskopt = c("mean", "median"), which = 1,
+    modObject = NULL, predictNA = FALSE, names.arg = NULL,
+    ask = TRUE, ...)
+
+  plotPredCoef(x, which = NULL, pers = TRUE,
+    commonRange = TRUE, showNumbers = FALSE,
+    showQuantiles = TRUE, ask = TRUE, terms = TRUE,
+    probs = c(0.05, 0.5, 0.95), ylim = NULL, ...)
+}
+\arguments{
+  \item{x}{object of class validateFDboost}
+
+  \item{object}{object of class validateFDboost}
+
+  \item{riskopt}{how the risk is minimized to obtain the
+  optimal stopping iteration; defaults to the mean, can be
+  changed to the median.}
+
+  \item{modObject}{if the original model object of class
+  \code{FDboost} is given predicted values of the whole
+  model can be compared to the predictions of the
+  cross-validated models}
+
+  \item{predictNA}{should missing values in the response be
+  predicted? Defaults to FALSE.}
+
+  \item{names.arg}{names of the observed curves}
+
+  \item{ask}{par(ask=ask)}
+
+  \item{which}{a subset of base-learners to take into
+  account for plotting. In the case of
+  \code{plot.validateFDboost} the diagnostic plots that are
+  given.}
+
+  \item{pers}{plot coefficient surfaces as persp-plots?
+  Defaults to TRUE.}
+
+  \item{commonRange,}{plot predicted coefficients on a
+  common range, defaults to TRUE}
+
+  \item{showQuantiles}{plot the 0.05 and the 0.95 Quantile
+  of coefficients in 1-dim effects}
+
+  \item{showNumbers}{show number of curve in plot of
+  predicted coefficients, defaults to FALSE}
+
+  \item{terms,}{logical, defaults to TRUE plot the added
+  terms (default) or the coefficients?}
+
+  \item{probs}{vector of quantiles to be used in the
+  plotting of 2-dimensional coefficients surfaces, defaults
+  to \code{probs=c(0.25, 0.5, 0.75)}}
+
+  \item{ylim}{values for limits of y-axis}
+
+  \item{...}{additional arguments passed to callies.}
+}
+\description{
+  Methods for objects that are fitted to determine the
+  optimal mstop and the prediction error of a model fitted
+  by FDboost.
+}
+\details{
+  \code{plot.validateFDboost} plots cross-validated risk,
+  RMSE, MRD, measured and predicted values and residuals as
+  determined by \code{validateFDboost}.
+  \code{mstop.validateFDboost} extracts the optimal mstop
+  by minimizing the median risk.
+}
+
