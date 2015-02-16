@@ -154,41 +154,51 @@ funplot <- function(x, y, id=NULL, rug=TRUE, ...){
     xlabel <- deparse(substitute(x))
     ylabel <- deparse(substitute(y))
     
+    # get color specification
+    if("col" %in% names(dots)){
+      col <- dots$col
+      argsPlot$col <- 1
+    }else{
+      col <- 1
+    }
+    
+    # expand vector col if it contains one color per trajectory
+    if(length(col) == length(unique(id)) ){
+      col <- rep(col, table(id) )
+    }
+    
     # there should be no mising values in long format
-    temp <- data.frame(id, y, x) # dim(temp)
+    temp <- data.frame(id, y, x, col, stringsAsFactors=FALSE) # dim(temp)
     temp <- na.omit(temp)   
     # order values of temp
     temp <- temp[order(temp$id, temp$x),] 
     id <- temp$id
     x <- temp$x
     y <- temp$y
+    col <- temp$col
     rm(temp)
+    
+    # generate vector of colors for each observation
+    if(is.null(argsPlot$col)){
+      col <- rep( (unique(id)-1), table(id))
+      col <- col %% 6 + 1  # only use the colors 1-6
+    }
+    argsPlot$col <- NULL
     
     # Plot the observed points
     if(!"add" %in% names(dots)){
       if(is.null(argsPlot$ylim)) argsPlot$ylim <- range(y, na.rm=TRUE) 
       plotWithArgs(plot, args=argsPlot, 
                    myargs=list(x=x[id==1], y=y[id==1], xlab=xlabel, ylab=ylabel, type="p", pch=3,
-                               ylim=range(y, na.rm=TRUE), xlim=range(x, na.rm=TRUE)) )
-    }
-
-    if("col" %in% names(dots)){
-      col <- dots$col
-      argsPlot$col <- NULL
-    }else{
-      col <- 1:6
-    }
-    
-    if(length(col)<length(unique(id))){
-      col <- rep(col, l=length(unique(id)))
+                               ylim=range(y, na.rm=TRUE), xlim=range(x, na.rm=TRUE),  col=col[id==1] ) )
     }
     
     for(i in unique(id)){
       plotWithArgs(points, args=argsPlot, 
                    myargs=list(x=x[id==i], y=y[id==i], xlab=xlabel, ylab=ylabel, type="p", pch=3,
-                               col=col[i]) )
+                               col=col[id==i]) )
       plotWithArgs(lines, args=argsPlot, 
-                   myargs=list(x=x[id==i], y=y[id==i], xlab=xlabel, ylab=ylabel, col=col[i]) )
+                   myargs=list(x=x[id==i], y=y[id==i], xlab=xlabel, ylab=ylabel, col=col[id==i]) )
     }
     
     if(rug) rug(x, 0.01)
@@ -551,10 +561,10 @@ funMSE <- function(object, overTime=TRUE, breaks=object$yind, global=FALSE,
 #' 
 #' @details 
 #' Formula to calculate MRD over time, \code{overTime=TRUE}: \cr
-#' \eqn{ MRD(t) = n^{-1} \sum_i |(Y_i(t) - \hat{Y}_i(t))^2|/|Y_i(t)| } 
+#' \eqn{ MRD(t) = n^{-1} \sum_i |Y_i(t) - \hat{Y}_i(t)| / |Y_i(t)| } 
 #' 
 #' Formula to calculate MRD over subjects, \code{overTime=FALSE}: \cr
-#' \eqn{ MRD_i = \int |(Y_i(t) - \hat{Y}_i(t))^2|/|Y_i(t)| dt  \approx G^{-1} \sum_g |(Y_i(t_g) - \hat{Y}_i(t_g))^2| / |Y_i(t)|}
+#' \eqn{ MRD_{i} = \int |Y_i(t) - \hat{Y}_i(t)| / |Y_i(t)| dt  \approx G^{-1} \sum_g |Y_i(t_g) - \hat{Y}_i(t_g)| / |Y_i(t)|}
 #' 
 #' @return Returns a vector with the calculated MRD and some extra information in attributes.
 #' 
@@ -608,5 +618,116 @@ funMRD <- function(object, overTime=TRUE, breaks=object$yind, global=FALSE,  ...
   
   return(ret)
 }
+
+
+###############################################################################
+## helper functions for identifiability 
+
+
+## based on code of function ff() in package refund
+## see Scheipl and Greven: Identifiability in penalized function-on-function regression models 
+# X1 matrix of functional covariate x(s)
+# L matrix of integration weights
+# Bs matrix of spline expansion in s
+# K penalty matrix
+# xname name of functional covariate
+# used type of penalty
+check_ident <- function(X1, L, Bs, K, xname, penalty){
+  
+  ## center X1 per column
+  X1 <- scale(X1, scale=FALSE)
+  
+  #print("check.ident")
+  ## check whether (number of basis functionsin Bs) < (number of relevant eigenfunctions of X1)
+  evls <- svd(X1, nu=0, nv=0)$d^2 # eigenvalues of centered fun. cov.
+  evls[evls<0] <- 0
+  maxK <- max(1, min(which((cumsum(evls)/sum(evls)) >= .995)))
+  bsdim <- ncol(Bs) # number of basis functions in Bs
+  #if(maxK < bsdim){
+  #  warning("<k> (" , bsdim , ") larger than effective rank of <", xname, "> (", maxK, "). ", 
+  #          "Effect identifiable only through penalty.")
+  #}
+  ## <FIXME> automatically use less basis-functions in case of problems?
+  ## you would have to change args$knots accordingly
+  
+  ### compute condition number of Ds^t Ds
+  Ds <- (X1 * L) %*% Bs
+  DstDs <- crossprod(Ds)
+  e_DstDs <- try(eigen(DstDs))
+  e_DstDs$values <- pmax(0, e_DstDs$values) # set negative eigenvalues to 0
+  logCondDs <- log10(e_DstDs$values[1]) - log10(tail(e_DstDs$values, 1))
+  if(logCondDs > 10^6){
+    warning("condition number for <", xname, "> greater than 10^6.", 
+            "Effect identifiable only through penalty.")
+  }
+  
+  ## measure degree of overlap between the spans of ker(t(X1)) and W%*%Bs%*%ker(K)
+  ## overlap after Larsson and Villani 2001
+  KeX <- Null(t(X1))  # function Null of package MASS computes kernel
+  if(any(dim(KeX)==0)){ # <FIXME> does it mean t(X1) has no kernel??
+    return(list(logCondDs = logCondDs, overlapKe = 0, 
+                maxK = maxK, penalty = penalty))
+  }  
+  KePen <- diag(L[1,]) %*% Bs %*% Null(K)
+  overlapKe <- trace_lv(svd(KeX, nv=0)$u, svd(KePen, nv=0)$u)
+  
+  if(overlapKe >= 1){
+    warning("Kernel overlap for <", xname, "> and the specified basis and penalty detected. ",
+            "Changing basis for X-direction to <penalty='pss'> to make model identifiable through penalty. ", 
+            "Coefficient surface estimate will be inherently unreliable.") 
+    penalty <- "pss"
+  }
+  
+  return(list(logCondDs=logCondDs, overlapKe=overlapKe, maxK=maxK, penalty=penalty))
+}
+
+
+## measure degree of overlap between the spans of X and Y using A=svd(X)$u, B=svd(Y)$u
+## code written by Fabian Scheipl
+trace_lv <- function(A, B, tol=1e-10){
+  ## A, B orthnormal!!
+  
+  #Rolf Larsson, Mattias Villani (2001)
+  #"A distance measure between cointegration spaces"
+  
+  if(NCOL(A)==0 | NCOL(B)==0){
+    return(0)
+  }
+  
+  if(NROW(A) != NROW(B) | NCOL(A) > NROW(A) | NCOL(B) > NROW(B)){
+    return(NA)
+  }
+  
+  trace <- if(NCOL(B)<=NCOL(A)){
+    sum(diag(t(B) %*% A %*% t(A) %*% B))
+  } else {
+    sum(diag(t(A) %*% B %*% t(B) %*% A))
+  }
+  trace
+}
+
+
+## use a penalty matrix with full rank, so-called "shrinkage approach" 
+## after Marra and Wood 2011  
+# K sqaured differences penalty matrix
+# difference degree of difference
+# shrink shrinkage parameter 
+penalty_pss <- function(K, difference, shrink){
+  
+  stopifnot(shrink > 0, shrink < 1)
+  
+  bsdim <- nrow(K) # ncol(Bs) # number of basis functions in Bs
+  ## add shrinkage term to penalty: 
+  ## Modify the penalty by increasing the penalty 
+  ## on the unpenalized space from zero...
+  es <- eigen(K, symmetric=TRUE)
+  ## now add a penalty on the penalty null space
+  es$values[(bsdim-difference+1):bsdim] <- es$values[bsdim-difference]*shrink
+  ## ... so penalty on null space is still less than that on range space.
+  K <- es$vectors %*% (as.numeric(es$values)*t(es$vectors)) 
+  
+  return(K)
+}
+  
 
 

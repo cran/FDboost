@@ -9,7 +9,8 @@ library(FDboost)
 ###################################################
 ### code chunk number 2: load-data
 ###################################################
-data(fuel)
+data(fuelSubset)
+fuel <- fuelSubset
 str(fuel)
 
 # # normalize the wavelength to 0-1

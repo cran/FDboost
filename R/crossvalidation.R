@@ -87,6 +87,7 @@ cvLong <- function(id, weights=rep(1, l=length(id)),
 #' are not used in the calculation of the MRD (= mean relative deviation) 
 #' @param refitSmoothOffset logical, should the offset be refitted in each learning sample? 
 #' Defaults to TRUE. 
+#' @param showProgress logigal, default to TRUE
 #' In \code{\link[mboost]{cvrisk}} the offset of the original model \code{object} is used.
 #' @param ydim dimensions of response-matrix
 #' @param weights a numeric vector of weights for the model to be cross-validated.
@@ -143,6 +144,7 @@ cvLong <- function(id, weights=rep(1, l=length(id)),
 #' \item{oobmrd}{the out-of-bag mean relative deviation (MRD)}
 #' \item{oobrisk0}{the out-of-bag risk without consideration of integration weights}
 #' \item{oobmse0}{the out-of-bag mean squared error (MSE) without consideration of integration weights}
+#' \item{oobmrd0}{the out-of-bag mean relative deviation (MRD) without consideration of integration weights}
 #' 
 #' @examples
 #' Ytest <- matrix(rnorm(15), ncol=3) # 5 trajectories, each with 3 observations 
@@ -181,7 +183,8 @@ validateFDboost <- function(object, response=NULL,
                             #folds=cvMa(ydim=object$ydim, weights=model.weights(object), type="bootstrap"),
                             folds=cv(rep(1, object$ydim[1]), type="bootstrap"),
                             grid=1:mstop(object), getCoefCV=TRUE, riskopt=c("mean","median"), 
-                            mrdDelete=0, refitSmoothOffset=TRUE, ...){
+                            mrdDelete=0, refitSmoothOffset=TRUE, 
+                            showProgress=TRUE, ...){
   
 #   if(is.null(folds)){
 #     warning("is.null(folds), per default folds=cvMa(ydim=object$ydim, weights=model.weights(object), type=\"bootstrap\")")
@@ -213,7 +216,17 @@ validateFDboost <- function(object, response=NULL,
   }
   
   # save integration weights of original model
-  intWeights <- model.weights(object)
+  ### intWeights <- model.weights(object) # weights are rescaled in mboost, see mboost:::rescale_weights  
+  if(!is.null(object$callEval$numInt) && object$callEval$numInt=="Riemann"){
+    if(is.null(object$id)){
+      intWeights <- as.vector(integrationWeights(X1=matrix(object$response, 
+                              ncol=object$ydim[2]), object$yind))
+    }else{
+      intWeights <- integrationWeights(X1=object$response, object$yind, id)
+    }
+  }else{
+    intWeights <- model.weights(object) 
+  }
   
   # out-of-bag-weights: i.e. the left out curve/ the left out observations
   OOBweights <- matrix(1, ncol = ncol(folds), nrow=nrow(folds))
@@ -241,9 +254,11 @@ validateFDboost <- function(object, response=NULL,
     yindLong <- rep(object$yind, each=object$ydim[1])
   }
   ### compute ("length of each trajectory")^-1 in the response
+  ### more precisely ("sum of integration weights")^-1 is used
   if(length(object$yind)>1){
-    lengthTi1 <- 1/tapply(yindLong[!is.na(response)], id[!is.na(response)], function(x) max(x) - min(x))
-    if(any(is.infinite(lengthTi1))) lengthTi1[is.infinite(lengthTi1)] <- max(lengthTi1[is.infinite(lengthTi1)])
+    # lengthTi1 <- 1/tapply(yindLong[!is.na(response)], id[!is.na(response)], function(x) max(x) - min(x))
+    lengthTi1 <- 1/tapply(intWeights, id, function(x) sum(x))
+    if(any(is.infinite(lengthTi1))) lengthTi1[is.infinite(lengthTi1)] <- max(lengthTi1[!is.infinite(lengthTi1)])
   }else{
     lengthTi1 <- rep(1, l=length(response))
   }
@@ -300,7 +315,7 @@ validateFDboost <- function(object, response=NULL,
     
     ####################
     ### compute risk and mse without integration weights, like in cvrisk
-    risk0 <- sapply(grid, function(g){riskfct( response, mod[g]$fitted(), 
+    risk0 <- sapply(grid, function(g){riskfct(response, mod[g]$fitted(), 
                                                w=oobweights[id])}) / sum(oobweights[id])
     
     mse0 <- simplify2array(mclapply(grid, function(g){
@@ -339,6 +354,11 @@ validateFDboost <- function(object, response=NULL,
     mrd <- simplify2array(mclapply(grid, function(g){
       sum( abs(resp0 - mod[g]$fitted())/abs(resp0)*oobwstand, na.rm=TRUE )
     }, mc.cores=1) )
+
+    mrd0 <- simplify2array(mclapply(grid, function(g){
+              sum( abs(resp0 - mod[g]$fitted())/abs(resp0)*oobweights[id], na.rm=TRUE )
+                 }, mc.cores=1) ) / sum(oobweights[id])
+
     
     rm(resp0, meanResp)
     
@@ -385,9 +405,11 @@ validateFDboost <- function(object, response=NULL,
         respOOB <- NULL
       } 
     }
-    
+
+    if(showProgress) cat(".")
+
     return(list(risk=risk, predGrid=predGrid, predOOB=predOOB, respOOB=respOOB, 
-                mse=mse, relMSE=relMSE, mrd=mrd, risk0=risk0, mse0=mse0, mod=mod))  
+                mse=mse, relMSE=relMSE, mrd=mrd, risk0=risk0, mse0=mse0, mrd0=mrd0, mod=mod))  
   } 
   
   ### computation of models on partitions of data
@@ -445,9 +467,11 @@ validateFDboost <- function(object, response=NULL,
   oobrisk0 <- t(sapply(modRisk, function(x) x$risk0))
   ## get out-of-bag mse without integration weights
   oobmse0 <- t(sapply(modRisk, function(x) x$mse0))
+  ## get out-of-bag mrd without integration weights
+  oobmrd0 <- t(sapply(modRisk, function(x) x$mrd0))
   
-  colnames(oobrisk0) <- colnames(oobmse0) <- grid
-  rownames(oobrisk0) <- rownames(oobmse0) <- which(modFitted)
+  colnames(oobrisk0) <- colnames(oobmse0) <- colnames(oobmrd0)  <- grid
+  rownames(oobrisk0) <- rownames(oobmse0) <- rownames(oobmrd0) <- which(modFitted)
   
   ############# check for folds with extreme risk-values at the global median
   riskOptimal <- oobrisk[ , which.min(apply(oobrisk, 2, median))]
@@ -597,7 +621,8 @@ validateFDboost <- function(object, response=NULL,
               oobrelMSE=oobrelMSE,
               oobmrd=oobmrd,
               oobrisk0=oobrisk0, 
-              oobmse0=oobmse0)
+              oobmse0=oobmse0,
+              oobmrd0=oobmrd0)
   
   class(ret) <- "validateFDboost"
   
@@ -988,7 +1013,8 @@ plotPredCoef <- function(x, which=NULL, pers=TRUE,
               plotWithArgs(persp, args=argsPersp, 
                            myargs=list(x=temp$x, y=temp$y, z=tempZ,
                                        ticktype="detailed", theta=30, phi=30,
-                                       xlab=temp$xlab, ylab=temp$ylab, zlab="coef", 
+                                       xlab=paste("\n", temp$xlab), ylab=paste("\n", temp$ylab), 
+                                       zlab=paste("\n", "coef"), 
                                        zlim=if(is.null(ylim)) range(matvec, na.rm=TRUE) else ylim,  
                                        main=paste(temp$main, " at ", probs[k]*100, "%-quantile", sep=""), 
                                        col=getColPersp(tempZ)))

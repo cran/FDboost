@@ -57,7 +57,6 @@ getCol2 <- function(x, cols = rainbow(18)[1:length(table(x))]){
 ###################################################
 ### code chunk number 2: load-data
 ###################################################
-# setwd("Z:/mboostFD")
 # load("viscosity.RData")
 data(viscosity)
 str(viscosity)
@@ -120,7 +119,7 @@ dev.off()
 ##                   timeformula=~bbs(time, lambda=100), 
 ##                   numInt="Riemann", family=QuantReg(), 
 ##                   offset=NULL, offset_control = o_control(k_min = 10),
-##                   data=viscosity, 
+##                   data=viscosity, check0=FALSE, 
 ##                   control=boost_control(mstop = 100, nu = 0.2))
 
 
@@ -141,7 +140,6 @@ dev.off()
 ###################################################
 ### code chunk number 6: stabsel1 (eval = FALSE)
 ###################################################
-## source("mboostDevel-inference.R")
 ## set.seed(1911)
 ## folds <- cvMa(ydim=modAll$ydim, weights=model.weights(modAll), 
 ##               type = "subsampling", B = 50)
@@ -159,7 +157,7 @@ dev.off()
 set.seed(1911)
 mod1 <- FDboost(vis ~ 1 + bols(T_C) + bols(T_A) + bols(T_C_T_A),
                 timeformula=~bbs(time, lambda=100),  
-                numInt="Riemann", family=QuantReg(), 
+                numInt="Riemann", family=QuantReg(), check0=FALSE, 
                 offset=NULL, offset_control = o_control(k_min = 10),
                 data=viscosity, control=boost_control(mstop = 200, nu = 0.2))
 

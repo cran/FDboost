@@ -1,3 +1,4 @@
+
 #' Summary of a boosted functional regression model 
 #' 
 #'  Takes a fitted \code{FDboost}-object and produces a summary.
@@ -98,6 +99,7 @@ predict.FDboost <- function(object, newdata = NULL, which=NULL, unlist=TRUE, ...
   stopifnot(any(class(object)=="FDboost")) 
   # print("Prediction FDboost") 
   
+  classObject <- class(object)
   class(object) <- "mboost"
   
   ### Prepare data so that the function predict.mboost() can be used
@@ -118,8 +120,7 @@ predict.FDboost <- function(object, newdata = NULL, which=NULL, unlist=TRUE, ...
     # save time-variable (index over response)
     nameyind <- attr(object$yind, "nameyind")
     lengthYind <- length(newdata[[nameyind]])
-    if(lengthYind==0) stop("Index of response, ", nameyind, ", 
-                           must be specified and have length >0.")
+    if(lengthYind==0) stop("Index of response, ", nameyind, ", must be specified and have length >0.")
     assign(nameyind, newdata[[nameyind]])
     newdata$ONEtime <- rep(1.0, lengthYind)
     
@@ -134,7 +135,8 @@ predict.FDboost <- function(object, newdata = NULL, which=NULL, unlist=TRUE, ...
     posBconc <- whichHelp[whichHelp %in% posBconc]
     posBhist <- whichHelp[whichHelp %in% posBhist]
     newdataConc <- list() # data to predict concurrent effect
-    newdataHist <- list() # data to predict historic effect
+    newdataHist <- list() # data to predict historic effect 
+    indname_all <- c() # save the names of all indices
     if(length(c(posBsignal, posBconc, posBhist))>0){
       #if(!is.list(newdata)) newdata <- list(newdata)
       for(i in c(posBsignal, posBconc, posBhist)){
@@ -144,26 +146,31 @@ predict.FDboost <- function(object, newdata = NULL, which=NULL, unlist=TRUE, ...
         formula_help <- formula(paste("resHelp ~", form))
         xname <- all.vars(formula_help)[2]
         indname <- if(length(all.vars(formula_help))>=3) all.vars(formula_help)[3] else "xindDefault" 
-        if(i %in% posBhist){
-          indnameY <- if(length(all.vars(formula_help))>=4) all.vars(formula_help)[4] else indname
+        indname_all <- c(indname_all, indname)
+        if(i %in% c(posBhist, posBconc)){
+          indnameY <- attr(object$yind, "nameyind")
         } else{
           indnameY <- NULL
         }
         
-        if(length(newdata[[indname]])!=ncol(newdata[[xname]])){
-          stop(paste("Dimensions of index", indname, "and signal", xname, "do not match."))
-        } 
+        #if(length(newdata[[indname]])!=ncol(newdata[[xname]])){
+        #  stop(paste("Dimensions of index", indname, "and signal", xname, "do not match."))
+        #} 
         
         attr(newdata[[xname]], "indname") <- indname
         attr(newdata[[xname]], "xname") <- xname
         attr(newdata[[xname]], "signalIndex") <-  if(indname!="xindDefault") newdata[[indname]] else seq(0,1,l=ncol(newdata[[xname]]))
         
-        if(i %in% posBhist){
+        if(i %in% c(posBhist, posBconc)){
           attr(newdata[[indnameY]], "indnameY") <-  indnameY
           attr(newdata[[xname]], "indexY") <-  if(indnameY!="xindDefault") newdata[[indnameY]] else seq(0,1,l=ncol(newdata[[xname]]))
+          if(any(classObject=="FDboostLong")){
+            id <- newdata[[ attr(object$id, "nameid") ]]
+            #if(is.null(id)) warning("There is no id-variable called,", attr(object$id, "nameid"),  "in newdata.")
+            
+            attr(newdata[[xname]], "id") <-  id
+          } 
         } 
-        
-        
         
         # save data of concurrent effects
         if(i %in% posBconc) newdataConc[[xname]] <- newdata[[xname]]
@@ -203,8 +210,9 @@ predict.FDboost <- function(object, newdata = NULL, which=NULL, unlist=TRUE, ...
     if(length(posBhist) > 0){ 
       if(length(unique(sapply(newdataHist, NROW))) != 1) stop(paste("Dimensions of newdata do not match:", 
                                                                     paste(names(newdataHist), sapply(newdataHist, NROW), sep=": ", collapse=", ")))
-      predMboostHist <- rowSums(predict(object=object, newdata=as.data.frame(newdataHist), 
-                                        which=posBhist, ...))
+      predMboostHist <- predict(object=object, newdata=as.data.frame(newdataHist), 
+                                        which=posBhist, ...)
+      predMboostHist <- rowSums(predMboostHist)
       whichHelp <- whichHelp[-which(whichHelp %in% posBhist)]
     }
     
@@ -224,10 +232,33 @@ predict.FDboost <- function(object, newdata = NULL, which=NULL, unlist=TRUE, ...
     predMboost0 <- 0
     
     if(length(whichHelp) > 0){
-      if(!is.null(object$ydim)){ # regualr grid
-        predMboost0 <- rowSums(predict(object=object, newdata=newdata, which=whichHelp, ...))
+      if(!is.null(object$ydim)){ # regular grid
+        # for for models containing %O%, mboost$predict allows to give newdata as a list
+        predMboost0 <- predict(object=object, newdata=newdata, which=whichHelp, ...)
+        predMboost0 <- rowSums(predMboost0)
       }else{ # long format
-        predMboost0 <- rowSums(predict(object=object, newdata=data.frame(newdata), which=whichHelp, ...))
+        # for models WITHOUT %O%, mboost$predict expects a data.frame;
+        # a list is NOT possible
+        ## only keep the necessary variables in the dataframe
+        vars <- all.vars(formula(object$formulaMboost)[[3]])
+        if(is.null(object$id)){ # get rid of id and index of Y in the case of regular data 
+          vars <- vars[!vars %in% c(attr(object$id, "nameid"), indname_all)]
+        }
+        vars <- vars[vars %in% names(newdata)]
+        
+        ## check whether t has the same length as the variables
+        if(length(vars) > 2 & "ONEx" %in% vars){ newdata[["ONEx"]] <- rep(1L, NROW(newdata[[vars[2]]])) }
+        if(length(unique(lapply(newdata[vars], NROW)))!=1){
+          stop("Only can predict with newdata for irregular response for equal NROW of all variables and the index of the response.")  
+        } 
+        newdata0 <- as.data.frame(newdata[vars])
+        # add a variable t, for y(t) to avoid error that the variable is not in dataframe
+        # newdata0[,attr(object$yind, "nameyind")] <- seq(min(object$yind), max(object$yind), 
+        #                                                l=nrow(newdata0))
+        
+        # predict(object=object, newdata=data.frame(newdata[vars]), which=whichHelp)
+        predMboost0 <- predict(object=object, newdata=newdata0, which=whichHelp, ...)
+        predMboost0 <- rowSums(predMboost0)
       }
     }
     
@@ -520,10 +551,10 @@ coef.FDboost <- function(object, raw=FALSE, which=NULL, computeCoef=TRUE,
               if(grepl("by", trm$get_call())){ 1 }else{ seq(min(z), max(z), length=n4) }
             } 
             d <- list(xg, yg, zg)  # data.frame
-#             # special case of factor by-variable 
-#             if(grepl("by", trm$get_call()) && grepl("bols", trm$get_call()) && is.factor(z)){
-#               d <- list(rep(xg, length(yg)), rep(yg, each=length(xg)), zg)
-#             }
+            ## special case of factor by-variable 
+            #if(grepl("by", trm$get_call()) && grepl("bols", trm$get_call()) && is.factor(z)){
+            #  d <- list(rep(xg, length(yg)), rep(yg, each=length(xg)), zg)
+            #}
             # special case of factor by-variable 
             if(grepl("by", trm$get_call()) && grepl("bols", trm$get_call()) && is.factor(z)){
               d <- list(rep(xg, length(zg)), yg, rep(zg, each=length(zg)))
@@ -542,17 +573,31 @@ coef.FDboost <- function(object, raw=FALSE, which=NULL, computeCoef=TRUE,
         }
         
         
-        ## add dummy signal to data
+        ## add dummy signal to data for bsignal()
         if(grepl("bsignal", trm$get_call()) ){
-          d[[attr(trm$model.frame()[[1]], "xname")]] <- I(diag(ng)/integrationWeights(diag(ng), d[[varnms[1]]] ))
+          d[[ trm$get_names()[1] ]] <- I(diag(ng)/integrationWeights(diag(ng), d[[varnms[1]]] ))
         }
+        
+        ## add dummy signal to data for bhist()
         ### <FIXME> is dummy-signal for bhist() correct?
+        ## standardisation weights depending on t must be multiplied to the final \beta(s,t)
+        ## as they cannot be included into the variable x(s)
+        ## use intFun() to compute the integration weights
+        # ls(environment(trm$dpp))
         if(grepl("bhist", trm$get_call()) ){
-          d[[attr(trm$model.frame()[[1]], "xname")]] <- I(diag(ng)/integrationWeightsLeft(diag(ng), d[[varnms[1]]]))
+          ## temp <- I(diag(ng)/integrationWeightsLeft(diag(ng), d[[varnms[1]]]))
+          ## use intFun() of the bl to compute the integration weights
+          temp <- environment(trm$dpp)$args$intFun(diag(ng), d[[varnms[1]]])
+          ##if(environment(trm$dpp)$args$stand=="transform"){
+          ##  xindStand <- (d[[varnms[1]]] - min(d[[varnms[1]]])) / (max(d[[varnms[1]]]) - min(d[[varnms[1]]]))
+          ##  temp <- environment(trm$dpp)$args$intFun(diag(ng), xindStand)
+          ##}
+          d[[attr(trm$model.frame()[[1]], "xname")]] <- I(diag(ng)/temp)
         }
-        ## add dummy signal to data
+        
+        ## add dummy signal to data for bconcurrent()
         if(grepl("bconcurrent", trm$get_call())){
-          d[[attr(trm$model.frame()[[1]], "xname")]] <- I(matrix(rep(1.0, ng^2), ncol=ng))
+          d[[ trm$get_names()[1] ]] <- I(matrix(rep(1.0, ng^2), ncol=ng))
         }
         
         if(trm$get_vary() != ""){
@@ -572,7 +617,7 @@ coef.FDboost <- function(object, raw=FALSE, which=NULL, computeCoef=TRUE,
       }
       
       getP <- function(trm, d){
-        #return an object similar to what plot.mgcv.smooth etc. return 
+        #return an object similar to what plot.mgcv.smooth etc. returns 
         if(trm$dim==1){
           predHelp <- predict(object, which=i, newdata=d)
           if(!is.matrix(predHelp)){ X <- predHelp
@@ -588,6 +633,28 @@ coef.FDboost <- function(object, raw=FALSE, which=NULL, computeCoef=TRUE,
           varnms <- attr(d, "varnms")
           if(trm$dim==2){
             X <- predict(object, newdata=d, which=i)
+            ## for bhist(), multiply with standardisation weights if necessary
+            ## you need the args$vecStand from the prediction of X, constructed here
+            if(grepl("bhist", trm$get_call()) && 
+                 environment(trm$dpp)$args$stand %in% c("length","time")){  
+              Lnew <- environment(trm$dpp)$args$intFun(d[[3]], d[[varnms[1]]])
+              ## Standardize with exact length of integration interval
+              ##  (1/t-t0) \int_{t0}^t f(s) ds
+              if(environment(trm$dpp)$args$stand == "length"){
+                ind0 <- !t(outer( d[[varnms[1]]], d[[varnms[2]]], environment(trm$dpp)$args$limits) )
+                Lnew[ind0] <- 0
+                ## integration weights in s-direction always sum exactly to 1, 
+                vecStand <- rowSums(Lnew)
+              }           
+              ## use time of current observation for standardization
+              ##  (1/t) \int_{t0}^t f(s) ds
+              if(environment(trm$dpp)$args$stand=="time"){
+                yindHelp <- d[[varnms[1]]]
+                yindHelp[yindHelp==0] <- Lnew[1,1] 
+                vecStand <- yindHelp
+              }
+              X <- t(t(X)*vecStand) 
+            }
             P <- list(x=attr(d, "xm"), y=attr(d, "ym"), xlab=varnms[1], ylab=varnms[2],
                       ylim=safeRange(attr(d, "ym")), xlim=safeRange(attr(d, "xm")),
                       z=attr(d, "zm"), zlab=varnms[3])
@@ -628,7 +695,8 @@ coef.FDboost <- function(object, raw=FALSE, which=NULL, computeCoef=TRUE,
       
       # If a by-variable was specified, reduce number of dimensions
       # as smooth linear effect in several groups can be plotted in one plot 
-      if( grepl("by", trm$get_call()) && grepl("bols", trm$get_call())) trm$dim <- trm$dim - 1
+      if( grepl("by =", trm$get_call()) && grepl("bols", trm$get_call()) || 
+            grepl("by =", trm$get_call()) && grepl("bbs", trm$get_call()) ) trm$dim <- trm$dim - 1
       
       # <FIXME> what to do with bbs(..., by=factor)?
       
@@ -643,7 +711,7 @@ coef.FDboost <- function(object, raw=FALSE, which=NULL, computeCoef=TRUE,
       if(!is.null(object$ydim) & any(grepl("%X%", trm$get_call()) ) ) trm$dim <- trm$dim - 1
       
       ## it is necessary to expand the dataframe!
-      if(is.null(object$ydim)){
+      if(is.null(object$ydim) && !grepl("bconcurrent", trm$get_call())){
         #browser()
         #print(attr(d, "varnms"))
         vari <- names(d)[1]
@@ -675,6 +743,7 @@ coef.FDboost <- function(object, raw=FALSE, which=NULL, computeCoef=TRUE,
       return(P)
     } # end of function getCoefs()
       
+
     ## Function to obtain nice short names for labeling of plots
     shortnames <- function(x){
       if(substr(x,1,1)=="\"") x <- substr(x, 2, nchar(x)-1)
@@ -683,16 +752,27 @@ coef.FDboost <- function(object, raw=FALSE, which=NULL, computeCoef=TRUE,
       if( !grepl(sign, x) ) sign <- "%X%"
       
       xpart <- unlist(strsplit(x, sign)) 
+      
       for(i in 1:length(xpart)){
         xpart[i] <- gsub("\\\"", "'", xpart[i], fixed=TRUE)
         nvar <- length(all.vars(formula(paste("Y~", xpart[i])))[-1])
-        commaSep <- unlist(strsplit(xpart[i], ","))
-        xpart[i] <- if(length(commaSep)==1){
-          paste(paste(commaSep[1:nvar], collapse=","), sep="")
-        }else paste(paste(commaSep[1:nvar], collapse=","), ")", sep="") 
-        if(substr(xpart[i], nchar(xpart[i])-2, nchar(xpart[i])-1)==") "){
-          xpart[i] <- substr(xpart[i], 1, nchar(xpart[i])-2)
+        commaSep <- unlist(strsplit(xpart[i], ","))  
+        
+        # shorten the name to first variable and delte x= if present
+        if(grepl("=", commaSep[1])){
+          temp <- unlist(strsplit(commaSep[1], "="))
+          temp[1] <- unlist(strsplit(temp[1], "(", fixed=TRUE))[1]
+          if(substr(temp[2], 1, 1)==" ") temp[2] <- substr(temp[2], 2, nchar(temp[2]))
+          xpart[i] <- paste(temp[1], "(", temp[2], ")", sep="")
+        }else{
+          xpart[i] <- paste(commaSep[1], ")", sep="")
         }
+        #xpart[i] <- if(length(commaSep)==1){
+        #  paste(paste(commaSep[1:nvar], collapse=","), sep="")
+        #}else paste(paste(commaSep[1:nvar], collapse=","), ")", sep="") 
+        #if(substr(xpart[i], nchar(xpart[i])-2, nchar(xpart[i])-1)==") "){
+        #  xpart[i] <- substr(xpart[i], 1, nchar(xpart[i])-2)
+        #}
       }
       ret <- xpart
       if(length(xpart)>1) ret <- paste(xpart, collapse=paste("", sign))
@@ -701,7 +781,7 @@ coef.FDboost <- function(object, raw=FALSE, which=NULL, computeCoef=TRUE,
     
     if(is.null(which)) which <- 1:length(object$baselearner)
     
-    ## short names for the terms, if shortnames() doesn´t work, use the original names
+    ## short names for the terms, if shortnames() does not work, use the original names
     shrtlbls <- try(unlist(lapply(names(object$baselearner), shortnames)))
     if(class(shrtlbls)=="try-error") shrtlbls <- names(object$baselearner) 
     
@@ -815,7 +895,7 @@ plot.FDboost <- function(x, raw=FALSE, rug=TRUE, which=NULL,
     do.call(plotFun, args)            
   }
   
-  #     #### Fabian´s superUtils
+  #     #### function by Fabian Scheipl
   #     # colors in rgb
   #     alpha <- function(x, alpha=25){
   #       tmp <- sapply(x, col2rgb)
@@ -889,7 +969,13 @@ plot.FDboost <- function(x, raw=FALSE, rug=TRUE, which=NULL,
       trm <- terms[[i]] 
       
       if(grepl("bhist", trm$main)){
-        trm$value[lower.tri(trm$value, diag = FALSE)] <- NA
+        ## set 0 to NA so that beta only has values in its domain
+        # get the limits- function
+        limits <- get("args", (environment(x$baselearner[[which[i]]]$dpp)))$limits
+        ## do not use it if stand  == "transform"
+        ## if(get("args", (environment(x$baselearner[[which[i]]]$dpp)))$stand != "transform"){
+        trm$value[!outer(trm$x, trm$y, limits)] <- NA
+        # }        
       }
       
       # plot for 1-dim effects
@@ -943,9 +1029,14 @@ plot.FDboost <- function(x, raw=FALSE, rug=TRUE, which=NULL,
             plot(y=trm$value[1,], x=trm$x, main=trm$main, type="l", xlab=trm$ylab, 
                  ylab="coef")
           }else{  
+            range <- range(trm$value, na.rm = TRUE)
+            if(range[1]==range[2]) range <- range(0, range)
+            zlim <- c(range[1] - 0.05*(range[2] - range[1]), 
+                      range[2] + 0.05*(range[2] - range[1]))
             plotWithArgs(persp, args=argsPersp,
-                         myargs=list(x=trm$x, y=trm$y, z=trm$value, xlab=trm$xlab, 
-                                     ylab=trm$ylab, zlab="coef", main=trm$main, theta=30, 
+                         myargs=list(x=trm$x, y=trm$y, z=trm$value, xlab=paste("\n", trm$xlab), 
+                                     ylab=paste("\n", trm$ylab), zlab=paste("\n", "coef"), 
+                                     main=trm$main, theta=30, zlim=zlim,
                                      phi=30, ticktype="detailed",
                                      col=getColPersp(trm$value)))
           } 
@@ -978,8 +1069,9 @@ plot.FDboost <- function(x, raw=FALSE, rug=TRUE, which=NULL,
       if(trm$dim==3 & pers){
         for(j in 1:length(trm$z)){
           plotWithArgs(persp, args=argsPersp,
-                       myargs=list(x=trm$x, y=trm$y, z=trm$value[[j]], xlab=trm$xlab, ylab=trm$ylab, 
-                                   zlab="coef", theta=30, phi=30, ticktype="detailed", 
+                       myargs=list(x=trm$x, y=trm$y, z=trm$value[[j]], xlab=paste("\n", trm$xlab), 
+                                   ylab=paste("\n", trm$ylab), zlab=paste("\n", "coef"), 
+                                   theta=30, phi=30, ticktype="detailed", 
                                    zlim=range(trm$value), col=getColPersp(trm$value[[j]]), 
                                    main= paste(trm$zlab ,"=", round(trm$z[j],2), ": ", trm$main, sep=""))
             )         
@@ -1050,7 +1142,11 @@ plot.FDboost <- function(x, raw=FALSE, rug=TRUE, which=NULL,
     for(i in 1:length(terms)){
       # set values of predicted effect to missing if response is missing
       if(sum(is.na(x$response))>0) terms[[i]][is.na(x$response)] <- NA
-      range <- range(terms[[i]], na.rm=TRUE)
+      if(is.null(dots$ylim)){
+        range <- range(terms[[i]], na.rm=TRUE)
+      }else{
+        range <- dots$ylim
+      }
       
       if(length(time)>1){
         

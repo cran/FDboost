@@ -1,5 +1,5 @@
-\name{fuel}
-\alias{fuel}
+\name{fuelSubset}
+\alias{fuelSubset}
 \docType{data}
 \title{ Spectral data of fossil fuels}
 \description{
@@ -9,9 +9,12 @@ determined together with two spectra.
 One spectrum is ultraviolet-visible (UV-VIS), measured at 1335 wavelengths in
 the range of 250.4 to 878.4 nanometer (nm), the other a near infrared  spectrum
 (NIR) measured at 2307 wavelengths in the range of 800.4 to 2779.0 nm.
+\code{fuelSubset} is a subset of the original dataset containing only 10\% of
+the original measures of the spectra, resulting in 231 measures of the
+NIR spectrum and 134 measures of the UVVIS spectrum.
 
 }
-\usage{data("fuel")}
+\usage{data("fuelSubset")}
 \format{
   A data list with 129 observations on the following 7 variables.
   \describe{
@@ -39,12 +42,14 @@ both spectra and their derivatives as predictors.
 }
 \examples{
 
-    data("fuel", package = "FDboost")
+    data("fuelSubset", package = "FDboost")
 
     ### fit mean regression model with 100 boosting iterations,
     ### step-length 0.1 and
-    mod <- FDboost(heatan ~ bsignal(UVVIS, uvvis.lambda, knots=40, df=4)
-                   + bsignal(NIR, nir.lambda, knots=40, df=4),
-                   timeformula=~bols(1), data=fuel)
+    mod <- FDboost(heatan ~ bsignal(UVVIS, uvvis.lambda, knots=40, df=4, check.ident=FALSE)
+                   + bsignal(NIR, nir.lambda, knots=40, df=4, check.ident=FALSE),
+                   timeformula=~bols(1), data=fuelSubset)
+    summary(mod)
+    ## plot(mod)
 }
 \keyword{datasets}
