@@ -4,21 +4,23 @@
 #' Computes trapezoidal integration weights for a functional variable X1 on grid xind.
 #' @param X1 matrix of functional variable
 #' @param xind index of functional variable
-#' @param id defaults to NULL if X1 is a matrix. identity variable if X1 is in long format.
+#' @param id defaults to NULL if \code{X1} is a matrix. identity variable if \code{X1} is in long format.
 #' @param leftWeight one of \code{c("mean", "first", "zero")}. With left Riemann sums 
 #' different assumptions for the weight of the first observation are possible. 
 #' The default is to use the mean over all integration weights, \code{"mean"}. 
-#' Alternative one can use the first integration weight, \code{"first"}, or 
-#' use distance to zero, \code{"zero"}. 
+#' Alternatively one can use the first integration weight, \code{"first"}, or 
+#' use the distance to zero, \code{"zero"}. 
 #' 
 #' @aliases integrationWeightsLeft
 #' 
 #'  @details The function \code{integrationWeights()} computes trapezoidal integration weights, 
-#'  that are symmetric. Per default those weights are use in the \code{\link{bsignal}}-base-learner. 
+#'  that are symmetric. Per default those weights are used in the \code{\link{bsignal}}-base-learner. 
+#'  In the special case of regular xind with equal distances all integration weights are equal.
+#'   
 #'  The function \code{integrationWeightsLeft()} computes weights,
 #'  that take into account only the distance to the prior observation point. 
 #'  Thus one has to decide what to do with the first observation. 
-#'  Those left weights are adequate for historical effects like in \code{\link{bhist}}.
+#'  The left weights are adequate for historical effects like in \code{\link{bhist}}.
 #'  
 #' @seealso \code{\link{bsignal}} and \code{\link{bhist}} for the base-learners. 
 #'
@@ -43,7 +45,7 @@
 #' xind <- c(0, 0.1, 0.3, 0.7, 1)
 #' X1 <- matrix(xind^2, ncol=length(xind0), nrow=2)
 #' 
-#' # Regualar observation points
+#' # Regular observation points
 #' integrationWeightsLeft(X1, xind0, leftWeight="mean") 
 #' integrationWeightsLeft(X1, xind0, leftWeight="first") 
 #' integrationWeightsLeft(X1, xind0, leftWeight="zero")
@@ -73,24 +75,35 @@ integrationWeights <- function(X1, xind, id=NULL){
     return(Lneu) 
   }  
   
-  #Li <- c(diff(xind)[1]/2, diff(xind)[2:(length(xind)-1)], diff(xind)[length(xind)-1]/2)
+  ## special case that grid has equal distances = regular grid
+  if(all( abs(diff(xind) - mean(diff(xind))) < .Machine$double.eps *10^10 )){
+    ## use the first difference 
+    L <- matrix(diff(xind)[1], nrow=nrow(X1), ncol=ncol(X1)) 
+    ##L <- matrix( 1/length(xind)*( max(xind)-min(xind) ), nrow=nrow(X1), ncol=ncol(X1))
+    
+  }else{ ## case with irregular grid
+    
+    #Li <- c(diff(xind)[1]/2, diff(xind)[2:(length(xind)-1)], diff(xind)[length(xind)-1]/2)
+    
+    # Riemann integration weights: mean weights between left and right sum
+    # \int^b_a f(t) dt = sum_i (t_i-t_{i-1})*(f(t_i)) (left sum)
+    # Li <- c(0,diff(xind))
+    
+    # trapezoidal
+    # \int^b_a f(t) dt = .5* sum_i (t_i - t_{i-1}) f(t_i) + f(t_{i-1}) = 
+    #  (t_2 - t_1)/2 * f(a=t_1) + sum^{nx-1}_{i=2} ((t_i - t_{i-1})/2 + (t_{i+1} - t_i)/2) * f(t_i) 
+    #      + (t_{nx} - t_{nx-1})/2 * f(b=t_{nx})
+    Li <- colMeans(rbind(c(0,diff(xind)), c(diff(xind), 0))) 
+    
+    # alternative calculation of trapezoidal weights
+    #diffs <- diff(xind)
+    #nxgrid <- length(xind)
+    #Li <- 0.5 * c(diffs[1],  filter(diffs, filter=c(1,1))[-(nxgrid-1)], diffs[(nxgrid-1)] )
+    
+    L <- matrix(Li, nrow=nrow(X1), ncol=ncol(X1), byrow=TRUE)
+    
+  }
   
-  # Riemann integration weights: mean weights between left and right sum
-  # \int^b_a f(t) dt = sum_i (t_i-t_{i-1})*(f(t_i)) (left sum)
-  # Li <- c(0,diff(xind))
-  
-  # trapezoidal
-  # \int^b_a f(t) dt = .5* sum_i (t_i - t_{i-1}) f(t_i) + f(t_{i-1}) = 
-  #  (t_2 - t_1)/2 * f(a=t_1) + sum^{nx-1}_{i=2} ((t_i - t_{i-1})/2 + (t_{i+1} - t_i)/2) * f(t_i) 
-  #  		+ (t_{nx} - t_{nx-1})/2 * f(b=t_{nx})
-  Li <- colMeans(rbind(c(0,diff(xind)), c(diff(xind), 0))) 
-  
-  # alternative calculation of trapezoidal weights
-  #diffs <- diff(xind)
-  #nxgrid <- length(xind)
-  #Li <- 0.5 * c(diffs[1],  filter(diffs, filter=c(1,1))[-(nxgrid-1)], diffs[(nxgrid-1)] )
-  
-  L <- matrix(Li, nrow=nrow(X1), ncol=ncol(X1), byrow=TRUE)
   
   # taking into account missing values
   if(any(is.na(X1))){
@@ -177,13 +190,13 @@ integrationWeightsLeft <- function(X1, xind, leftWeight=c("first", "mean", "zero
   return(L)
 }
 
-## test integrationWeightsLeft
-xind <- c(0.5, 0.7, 1, 2, 4)
-X1 <- matrix(xind^2, ncol=5)
-integrationWeightsLeft(X1, xind)
-integrationWeightsLeft(X1, xind, leftWeight="mean")
-integrationWeightsLeft(X1, xind, leftWeight="first")
-integrationWeightsLeft(X1, xind, leftWeight="zero")
+# ## test integrationWeightsLeft
+# xind <- c(0.5, 0.7, 1, 2, 4)
+# X1 <- matrix(xind^2, ncol=5)
+# integrationWeightsLeft(X1, xind)
+# integrationWeightsLeft(X1, xind, leftWeight="mean")
+# integrationWeightsLeft(X1, xind, leftWeight="first")
+# integrationWeightsLeft(X1, xind, leftWeight="zero")
 
 ################################################################################
 ### syntax for base learners is modified code of the package mboost, see bl.R
@@ -195,8 +208,8 @@ integrationWeightsLeft(X1, xind, leftWeight="zero")
 # Base-learners for functional covariates 
 
 ### hyper parameters for signal baselearner with P-splines
-hyper_signal <- function(mf, vary, knots = 10, boundary.knots = NULL, degree = 3,
-                      differences = 2, df = 4, lambda = NULL, center = FALSE,
+hyper_signal <- function(mf, vary, inS="smooth", knots = 10, boundary.knots = NULL, degree = 3,
+                      differences = 1, df = 4, lambda = NULL, center = FALSE,
                       cyclic = FALSE, constraint = "none", deriv = 0L, 
                       Z=NULL, penalty="ps", check.ident = FALSE,
                       s=NULL) {
@@ -233,10 +246,11 @@ hyper_signal <- function(mf, vary, knots = 10, boundary.knots = NULL, degree = 3
     stop("constraints not implemented for cyclic B-splines")
   stopifnot(is.numeric(deriv) & length(deriv) == 1)
   
+  ## prediction is usually set in/by newX()
   list(knots = ret, degree = degree, differences = differences,
        df = df, lambda = lambda, center = center, cyclic = cyclic,
-       Ts_constraint = constraint, deriv = deriv, 
-       Z = Z, penalty = penalty, check.ident = check.ident, s=s)
+       Ts_constraint = constraint, deriv = deriv, prediction = FALSE, 
+       Z = Z, penalty = penalty, check.ident = check.ident, s=s, inS=inS)
 }
 
 
@@ -252,17 +266,32 @@ X_bsignal <- function(mf, vary, args) {
   
   if(ncol(X1)!=length(xind)) stop(xname, ": Dimension of signal matrix and its index do not match.")
   
-  # B-spline basis of specified degree  
-  #Bs <- bs(xind, knots=knots, degree=args$degree, intercept=TRUE) # old version   
-  Bs <- bsplines(xind, 
-                 knots=args$knots$knots, boundary.knots=args$knots$boundary.knots, 
-                 degree=args$degree)
+  # compute design-matrix in s-direction
+  Bs <- switch(args$inS, 
+               # B-spline basis of specified degree 
+               # "smooth" = bsplines(xind, knots=args$knots$knots, 
+               #                   boundary.knots=args$knots$boundary.knots, 
+               #                   degree=args$degree),
+               "smooth" = mboost_intern(xind, knots = args$knots$knots, 
+                                        boundary.knots = args$knots$boundary.knots, 
+                                        degree = args$degree, 
+                                        fun = "bsplines"),
+               "linear" = matrix(c(rep(1, length(xind)), xind), ncol=2),
+               "constant"=  matrix(c(rep(1, length(xind))), ncol=1))
+  
+  colnames(Bs) <- paste(xname, 1:ncol(Bs), sep="")
+  
   
   # use cyclic splines
   if (args$cyclic) {
-    Bs <- cbs(xind, knots = args$knots$knots,
-              boundary.knots = args$knots$boundary.knots,
-              degree = args$degree)
+    if(args$inS != "smooth") stop("Cyclic splines are only meaningful for a smooth effect.")
+    # Bs <- cbs(xind, knots = args$knots$knots,
+    #          boundary.knots = args$knots$boundary.knots,
+    #          degree = args$degree)
+    Bs <- mboost_intern(xind, knots = args$knots$knots,
+                        boundary.knots = args$knots$boundary.knots,
+                        degree = args$degree, 
+                        fun = "cbs")
   }
   
   colnames(Bs) <- paste(xname, 1:ncol(Bs), sep="")  
@@ -290,23 +319,29 @@ X_bsignal <- function(mf, vary, args) {
   ### penalty matrix is squared difference matrix
   K <- crossprod(K)
   
+  if(args$inS != "smooth"){ 
+    K <- diag(ncol(Bs))
+  }
+  
   #----------------------------------
   ### <SB> Calculate constraints if necessary
   ### use the transformation matrix Z if necessary
   ### Check whether integral over trajectories is different, then centering is advisable
   ## as arbitrary constants can be added to the coefficient surface
-  if(is.null(args$Z) && all(rowMeans(X1)-mean(rowMeans(X1)) < .Machine$double.eps *10^10)){
+  if(is.null(args$Z) && 
+       all( abs(rowMeans(X1, na.rm = TRUE)-mean(rowMeans(X1, na.rm = TRUE))) < .Machine$double.eps *10^10)){
     # message(paste("All trajectories in ", xname, " have the same mean. ",
     # "Coefficient function is centered.", sep=""))
     C <- t(Bs) %*% rep(1, nrow(Bs))
     Q <- qr.Q(qr(C), complete=TRUE) # orthonormal matrix of QR decomposition
     args$Z <- Q[  , 2:ncol(Q)] # only keep last columns  
+  }else{ ### <FIXME> nicer solution that Z not produced for prediction with new data with mean 0?
+    args$Z <- diag(x=1, ncol=ncol(Bs), nrow=ncol(Bs))
   }
   
   if(!is.null(args$Z)){ 
     ### Transform design and penalty matrix
     Bs <- Bs %*% args$Z
-    ### <FIXME> is it correct, that penalty-matrix is transformed as well?
     K <- t(args$Z) %*% K %*% args$Z
   }
   #---------------------------------- 
@@ -318,10 +353,13 @@ X_bsignal <- function(mf, vary, args) {
   L <- integrationWeights(X1=X1, xind=xind)
   # Design matrix is product of weighted X1 and basis expansion over xind 
   X <- (L*X1) %*% Bs
+  
+  colnames(X) <- paste0(xname, 1:ncol(X))
  
-  ## see Scheipl and Greven: Identifiability in penalized function-on-function regression models  
+  ## see Scheipl and Greven (2016): Identifiability in penalized function-on-function regression models  
   if(args$check.ident){
-    res_check <- check_ident(X1=X1, L=L, Bs=Bs, K=K, xname=xname, penalty=args$penalty)
+    res_check <- check_ident(X1=X1, L=L, Bs=Bs, K=K, xname=xname, 
+                             penalty=args$penalty, cumOverlap=FALSE)
     args$penalty <- res_check$penalty
     args$logCondDs <- res_check$logCondDs
     args$overlapKe <- res_check$overlapKe
@@ -333,6 +371,27 @@ X_bsignal <- function(mf, vary, args) {
     K <- penalty_pss(K=K, difference=args$difference, shrink=0.1)
   }
   
+  #####################################################
+  ####### K <- crossprod(K) has been computed before!
+  if (!identical(args$center, FALSE)) {
+
+    ### L = \Gamma \Omega^1/2 in Section 2.3. of
+    ### Fahrmeir et al. (2004, Stat Sinica); "spectralDecomp"
+    SVD <- eigen(K, symmetric = TRUE)
+    ev <- SVD$vector[, 1:(ncol(X) - args$differences), drop = FALSE]
+    ew <- SVD$values[1:(ncol(X) - args$differences), drop = FALSE]
+    # penalized part of X: X L (L^t L)^-1
+    X <- X %*% ev %*% diag(1/sqrt(ew))
+    
+    ## unpenalized part of X: 
+    ## for differences = 2 gives equivalent results to specifying inS='linear' 
+    # X <- X %*% Null(K)
+    
+    # attributes(X)[c("degree", "knots", "Boundary.knots")] <- tmp
+    K <- diag(ncol(X))
+  } 
+  #####################################################
+  
   ## compare specified degrees of freedom to dimension of null space
   if (!is.null(args$df)){
     rns <- ncol(K) - qr(as.matrix(K))$rank # compute rank of null space
@@ -340,12 +399,15 @@ X_bsignal <- function(mf, vary, args) {
       warning( sQuote("df"), " equal to rank of null space ",
                "(unpenalized part of P-spline);\n  ",
                "Consider larger value for ", sQuote("df"),
-               " or set ", sQuote("center = TRUE"), ".", immediate.=TRUE)
+               ## " or set ", sQuote("center = TRUE"), 
+               ".", immediate.=TRUE)
     if (rns > args$df)
       stop("not possible to specify ", sQuote("df"),
            " smaller than the rank of the null space\n  ",
            "(unpenalized part of P-spline). Use larger value for ",
-           sQuote("df"), " or set ", sQuote("center = TRUE"), ".")
+           sQuote("df"), 
+           ## " or set ", sQuote("center = TRUE"), 
+           ".")
   }
   return(list(X = X, K = K, args=args))
 }
@@ -354,36 +416,37 @@ X_bsignal <- function(mf, vary, args) {
 
 #' Base-learners for Functional Covariates
 #' 
-#' Base-learners that fit effects of functional covariates 
+#' Base-learners that fit effects of functional covariates.  
 #' 
-#' @param ... matrix of functional data and the vector of observation points.
-#' The functional covariates have to be supplied as n by <no. of evaluations> 
-#' matrices, i.e. each row is one functional observation.
-#' The base-learner \code{bhist} expects three arguments: functional covariate,
-#' index of functional covariate, index of functional response 
-#' \eqn{[0,1]} is assumed.
 #' @param x matrix of functional variable x(s). The functional covariate has to be 
 #' supplied as n by <no. of evaluations> matrix, i.e. each row is one functional observation. 
 #' @param s vector for the index of the functional variable x(s) giving 
-#' measurment points. 
+#' measurement points. 
 #' @param time vector for the index of the functional response y(time) 
 #' giving the measurement points. 
 #' @param index a vector of integers for expanding the signal variable in \code{x} 
 #' For example, \code{bsignal(X, s, index = index)} is equal to \code{bsignal(X[index,], s)}, 
 #' where index is an integer of length greater or equal to \code{length(x)}.
 #' @param knots either the number of knots or a vector of the positions 
-#' of the interior knots (for more details see \code{\link[mboost]{bbs})}.
+#' of the interior knots (for more details see \code{\link[mboost]{bbs}}).
 #' @param boundary.knots boundary points at which to anchor the B-spline basis 
 #' (default the range of the data). A vector (of length 2) 
 #' for the lower and the upper boundary knot can be specified.
 #' @param degree degree of the regression spline.
-#' @param differences a non-negative integer, typically 1, 2 or 3. 
+#' @param differences a non-negative integer, typically 1, 2 or 3. Defaults to 1.  
 #' If \code{differences} = \emph{k}, \emph{k}-th-order differences are used as 
 #' a penalty (\emph{0}-th order differences specify a ridge penalty).
 #' @param df trace of the hat matrix for the base-learner defining the 
 #' base-learner complexity. Low values of \code{df} correspond to a 
 #' large amount of smoothing and thus to "weaker" base-learners.
-#' @param lambda smoothing penalty
+#' @param lambda smoothing parameter of the penalty, computed from \code{df} when \code{df} is specified. 
+#' @param center experimental implementation! See \code{\link[mboost]{bbs}}. 
+#' The effect is re-parameterized such that the unpenalized part of the fit is subtracted and only 
+#' the penalized effect is fitted, using a spectral decomposition of the penalty matrix.  
+#' The unpenalized, parametric part has then to be included in separate 
+#' base-learners using \code{bsignal(..., inS = 'constant')} or \code{bsignal(..., inS = 'linear')} 
+#' for first (\code{difference = 1}) and second (\code{difference = 2}) order difference penalty respectively. 
+#' See the help on the argument \code{center} of \code{\link[mboost]{bbs}}.   
 #' @param cyclic if \code{cyclic = TRUE} the fitted coefficient function coincides at the boundaries 
 #' (useful for cyclic covariates such as day time etc.).
 #' @param Z a transformation matrix for the design-matrix over the index of the covariate.
@@ -393,10 +456,10 @@ X_bsignal <- function(mf, vary, args) {
 #' @param penalty by default, \code{penalty="ps"}, the difference penalty for P-splines is used, 
 #' for \code{penalty="pss"} the penalty matrix is transformed to have full rank, 
 #' so called shrinkage approach by Marra and Wood (2011)
-#' @param check.ident use checks for identifiability of the effect, based on Scheipl and Greven (2012)
+#' @param check.ident use checks for identifiability of the effect, based on Scheipl and Greven (2016)
 #' @param standard the historical effect can be standardized with a factor. 
 #' "no" means no standardization, "time" standardizes with the current value of time and 
-#' "lenght" standardizes with the lenght of the integral 
+#' "length" standardizes with the length of the integral 
 #' @param intFun specify the function that is used to compute integration weights in \code{s} 
 #' over the functional covariate \eqn{x(s)}
 #' @param inS historical effect can be smooth, linear or constant in s, 
@@ -408,40 +471,66 @@ X_bsignal <- function(mf, vary, args) {
 #' either one of \code{"s<t"} or \code{"s<=t"} for (s_{hi, i}, s_{lo, i}) = (0, t) or a 
 #' function that takes \eqn{s} as the first and \code{t} as the second argument and returns 
 #' \code{TRUE} for combinations of values (s,t) if \eqn{s} falls into the integration range for 
-#' the given \eqn{t}. 
-#' This is an experimental feature and not well tested yet; use at your own risk. 
+#' the given \eqn{t}.  
+#' @param pve proportion of variance explained: used to choose the number of principal components.
+#' @param npc prespecified value for the number of principal components (if given, this overrides \code{pve}).
+#' @param npc.max maximal number K of FPCs to use, regardless of decomppars; defaults to 15. 
+#' @param getEigen save the eigenvalues and eigenvectors, defaults to \code{TRUE}. 
 #' 
-#' @aliases bconcurrent bhist 
+#' @aliases bconcurrent bhist bfpc 
 #' 
 #' @details \code{bsignal} implements a base-learner for functional covariates to  
-#' estimate an effect of the form \eqn{int X_i(s)\beta(t,s)ds}. Defaults to a cubic  
-#' B-spline basis with second difference penalties for \eqn{beta(t,s)} in the direction 
-#' of s and numerical integration over the entire range by using trapezoidal 
-#' Riemann weights. 
+#' estimate an effect of the form \eqn{\int x_i(s)\beta(s)ds}. Defaults to a cubic  
+#' B-spline basis with first difference penalties for \eqn{\beta(s)} and numerical 
+#' integration over the entire range by using trapezoidal Riemann weights. 
+#' If \code{bsignal} is used within \code{FDboost}, the base-learner of 
+#' \code{timeformula} is attached, resulting in an effect varying over the index
+#' of the response \eqn{\int x_i(s)\beta(s, t)ds}. 
+#' The functional variable must be observed on one common grid \code{s}.  
 #' 
 #' \code{bconcurrent} implements a concurrent effect for a functional covariate
-#' on a functional response, i.e. an effect of the form \eqn{X_i(t)beta(t)} for
-#' a functional response \eqn{Y_i(t)}. 
-#' 
-#' It is recommended to use centered functional covariates with 
-#' \eqn{\sum_i X_i(s) = 0} for all \eqn{s} in \code{bconcurrent}- and 
-#' \code{bsignal}-terms so that the global functional intercept 
-#' can be interpreted as the global mean function. 
+#' on a functional response, i.e., an effect of the form \eqn{x_i(t)\beta(t)} for
+#' a functional response \eqn{Y_i(t)} and concurrently observed covariate \eqn{x_i(t)}. 
+#' \code{bconcurrent} can only be used if \eqn{Y(t)} and \eqn{x(s)} are observed over
+#' the same domain \eqn{s,t \in [t_0, T]}.  
+#' Note that in the case of \code{bhist} the argument \code{index} is treated
+#' like a variable and thus has to be given as variable in \code{newdata}, 
+#' if \code{predict.FDboost} is with argument \code{newdata}.  
 #'
 #' \code{bhist} implements a base-learner for functional covariates with 
 #' flexible integration limits \code{l(t)}, \code{r(t)} and the possibility to
 #' standardize the effect by \code{1/t} or the length of the integration interval. 
-#' The effect is \code{stand * int_{l(t)}^{r_{t}} x(s)beta(t,s)ds}. 
+#' The effect is \eqn{stand * \int_{l(t)}^{r_{t}} x(s)\beta(t,s)ds}. 
 #' The base-learner defaults to a historical effect of the form 
-#' \eqn{\int_{t0}^{t} X_i(s)beta(t,s)ds}, 
+#' \eqn{\int_{t0}^{t} x_i(s)\beta(t,s)ds}, 
 #' where \eqn{t0} is the minimal index of \eqn{t} of the response \eqn{Y(t)}. 
+#' \code{bhist} can only be used if \eqn{Y(t)} and \eqn{x(s)} are observed over
+#' the same domain \eqn{s,t \in [t_0, T]}. 
+#' The functional variable must be observed on one common grid \code{s}, 
+#' see Brockhaus et al. (2016) for details on historical effects.   
 #' 
-#' Cannot deal with any missing values in the covariates.
+#' \code{bfpc} is a base-learner for functional covariates based on 
+#' functional principal component analysis (FPCA). The functional covariate
+#' \eqn{x(s)} is decomposed into \eqn{x(s) \approx \sum_{k=1}^K \xi_{ik} \Phi_k(s)} using 
+#' \code{\link[refund]{fpca.sc}} and represents \eqn{\beta(s)} in the function
+#' space spanned by \eqn{\Phi_k(s)}, see Scheipl et al. (2015) for details. 
+#' The implementation is similar to \code{\link[refund]{ffpc}}.  
+#' This is an experimental base-learner and not well tested yet. 
 #' 
-#' @return Equally to the base-learners of the package mboost: 
+#' It is recommended to use centered functional covariates with 
+#' \eqn{\sum_i x_i(s) = 0} for all \eqn{s} in \code{bsignal}-, 
+#' \code{bhist}- and \code{bconcurrent}-terms 
+#' so that the effects are centered per time-point of the response. 
+#' If all effects are centered, the functional intercept 
+#' can be interpreted as the global mean function. 
+#' 
+#' The base-learners for functional covariates cannot deal with any missing 
+#' values in the covariates.
+#' 
+#' @return Equally to the base-learners of package mboost: 
 #' 
 #' An object of class \code{blg} (base-learner generator) with a 
-#' \code{dpp} function. 
+#' \code{dpp} function (dpp, data pre-processing). 
 #' 
 #' The call of \code{dpp} returns an object of class 
 #' \code{bl} (base-learner) with a \code{fit} function. The call to 
@@ -451,33 +540,47 @@ X_bsignal <- function(mf, vary, args) {
 #' @keywords models
 #' 
 #' @references 
-#' Brockhaus, S., Scheipl, F., Hothorn, T. and Greven, S. (2015). 
-#' The Functional Linear Array Model. Statistical Modelling, in press.
+#' Brockhaus, S., Scheipl, F., Hothorn, T. and Greven, S. (2015): 
+#' The functional linear array model. Statistical Modelling, 15(3), 279-300.
 #' 
-#' Marra, G., and Wood, S.N., (2011) Practical variable selection for generalized additive models. 
+#' Brockhaus, S., Melcher, M., Leisch, F. and Greven, S. (2016): 
+#' Boosting flexible functional regression models with a high number of functional historical effects, 
+#' under revision. 
+#' 
+#' Marra, G. and Wood, S.N. (2011): Practical variable selection for generalized additive models. 
 #' Computational Statistics & Data Analysis, 55, 2372-2387.
 #' 
-#' Scheipl, F., Staicu, A.-M., and Greven, S. (2014), 
-#' Functional Additive Mixed Models, Journal of Computational and Graphical Statistics, 
-#' in press, DOI 10.1080/10618600.2014.901914.
-#' \url{http://arxiv.org/abs/1207.5947} 
+#' Scheipl, F., Staicu, A.-M. and Greven, S. (2015): 
+#' Functional Additive Mixed Models, Journal of Computational and Graphical Statistics, 24(2), 477-501. 
 #' 
-#' Scheipl, F., Greven, S. (2012): Identifiability in penalized function-on-function regression models. 
-#' Technical Report 125, Department of Statistics, LMU Muenchen.
+#' Scheipl, F. and Greven, S. (2016): Identifiability in penalized function-on-function regression models. 
+#' Electronic Journal of Statistics, 10(1), 495-526. 
 #'  
 #' @examples 
-#' ### example for scalar response and two functional covariates 
-#' data(fuelSubset, package = "FDboost")
-#' modFuel <- FDboost(heatan ~ bsignal(UVVIS, uvvis.lambda, knots=40, df=4, check.ident=FALSE) 
-#'            + bsignal(NIR, nir.lambda, knots=40, df=4, check.ident=FALSE), 
-#'            timeformula=~bols(1), check0=FALSE, data=fuelSubset)
-#' summary(modFuel)
-#' ## plot(modFuel)
+#' ######## Example for scalar-on-function-regression 
+#' data("fuelSubset", package = "FDboost")
+#' 
+#' ## center the functional covariates per observed wavelength
+#' fuelSubset$UVVIS <- scale(fuelSubset$UVVIS, scale = FALSE)
+#' fuelSubset$NIR <- scale(fuelSubset$NIR, scale = FALSE)
+#' 
+#' ## to make mboost:::df2lambda() happy (all design matrix entries < 10)
+#' ## reduce range of argvals to [0,1] to get smaller integration weights
+#' fuelSubset$uvvis.lambda <- with(fuelSubset, (uvvis.lambda - min(uvvis.lambda)) /
+#'                                   (max(uvvis.lambda) - min(uvvis.lambda) ))
+#' fuelSubset$nir.lambda <- with(fuelSubset, (nir.lambda - min(nir.lambda)) /
+#'                                 (max(nir.lambda) - min(nir.lambda) ))
+#'                                 
+#' mod2 <- FDboost(heatan ~ bsignal(UVVIS, uvvis.lambda, knots=40, df=4, check.ident=FALSE) 
+#'                + bsignal(NIR, nir.lambda, knots=40, df=4, check.ident=FALSE), 
+#'                timeformula=NULL, data=fuelSubset) 
+#' summary(mod2) 
+#' ## plot(mod2)
 #' @export
 ### P-spline base-learner for signal matrix with index vector
-bsignal <- function(x, s, index = NULL, #by = NULL,
-                    knots = 10, boundary.knots = NULL, degree = 3, differences = 2, df = 4, 
-                    lambda = NULL, #center = FALSE, 
+bsignal <- function(x, s, index = NULL, inS=c("smooth", "linear", "constant"), #by = NULL,
+                    knots = 10, boundary.knots = NULL, degree = 3, differences = 1, df = 4, 
+                    lambda = NULL, center = FALSE, 
                     cyclic = FALSE, Z = NULL, 
                     penalty=c("ps","pss"), check.ident = FALSE
 ){
@@ -487,9 +590,11 @@ bsignal <- function(x, s, index = NULL, #by = NULL,
   cll <- match.call()
   cll[[1]] <- as.name("bsignal")
   penalty <- match.arg(penalty)
+  inS <- match.arg(inS)
   #print(cll)
   
-  if(!isMATRIX(x)) stop("signal has to be a matrix")
+  # if(!isMATRIX(x)) stop("signal has to be a matrix")
+  if( ! mboost_intern(x, fun = "isMATRIX")) stop("signal has to be a matrix")
   
   varnames <- all.vars(cll)
   #   if(length(mfL)==1){ 
@@ -508,11 +613,12 @@ bsignal <- function(x, s, index = NULL, #by = NULL,
   mf <- data.frame("z"=I(x))
   names(mf) <- xname
   
-  if(!all( colMeans(x) < .Machine$double.eps*10^10)){
+  if(!all( abs(colMeans(x, na.rm = TRUE)) < .Machine$double.eps*10^10)){
     message(xname, " is not centered per column, inducing a non-centered effect.")
   }
   
-  if(is.null(Z) && all(rowMeans(x)-mean(rowMeans(x)) < .Machine$double.eps *10^10)){
+  if(is.null(Z) && 
+       all( abs(rowMeans(x, na.rm = TRUE)-mean(rowMeans(x, na.rm = TRUE))) < .Machine$double.eps *10^10)){
     message(paste("All trajectories in ", xname, " have the same mean. Coefficient function is centered.", sep=""))
   }
   
@@ -521,8 +627,8 @@ bsignal <- function(x, s, index = NULL, #by = NULL,
   
   vary <- ""
   
-  CC <- all(Complete.cases(mf))
-  #  CC <- all(Complete.cases(mf[1]))
+  # CC <- all(Complete.cases(mf))
+  CC <- all(mboost_intern(mf, fun = "Complete.cases"))
   if (!CC)
     warning("base-learner contains missing values;\n",
             "missing values are excluded per base-learner, ",
@@ -534,9 +640,10 @@ bsignal <- function(x, s, index = NULL, #by = NULL,
   ## call X_bsignal in oder to compute parameter settings, e.g. 
   ## the transformation matrix Z, shrinkage penalty, identifiability problems...
   temp <- X_bsignal(mf, vary, 
-                    args = hyper_signal(mf, vary, knots = knots, boundary.knots =
-                                          boundary.knots, degree = degree, differences = differences,
-                                        df = df, lambda = lambda, center = FALSE, cyclic = cyclic,
+                    args = hyper_signal(mf, vary, inS=inS, knots = knots, 
+                                        boundary.knots = boundary.knots, degree = degree, 
+                                        differences = differences,
+                                        df = df, lambda = lambda, center = center, cyclic = cyclic,
                                         Z = Z, penalty = penalty, check.ident = check.ident,
                                         s = s))
   temp$args$check.ident <- FALSE
@@ -562,7 +669,8 @@ bsignal <- function(x, s, index = NULL, #by = NULL,
     get_vary = function() vary,
     get_names = function(){
       attr(xname, "indname") <- indname 
-      xname 
+      xname
+      #c(xname, indname)
     }, #colnames(mf),
     set_names = function(value) {
       #if(length(value) != length(colnames(mf)))
@@ -576,11 +684,11 @@ bsignal <- function(x, s, index = NULL, #by = NULL,
     })
   class(ret) <- "blg"
   
-  #browser()
   #print("bsignal")
   #print(Z)
   
-  ret$dpp <- bl_lin(ret, Xfun = X_bsignal, args = temp$args)
+  # ret$dpp <- bl_lin(ret, Xfun = X_bsignal, args = temp$args)
+  ret$dpp <- mboost_intern(ret, Xfun = X_bsignal, args = temp$args, fun = "bl_lin")
   
   rm(temp)
   
@@ -631,11 +739,15 @@ X_conc <- function(mf, vary, args) {
   # compute design-matrix in s-direction
   Bs <- switch(args$inS, 
                # B-spline basis of specified degree 
-               "smooth" = bsplines(xind, knots=args$knots$s$knots, 
-                                   boundary.knots=args$knots$s$boundary.knots, 
-                                   degree=args$degree),
-               "linear" = matrix(c(rep(1, length(xind)), xind), ncol=2),
-               "constant"=  matrix(c(rep(1, length(xind))), ncol=1))
+               # "smooth" = bsplines(xind, knots=args$knots$s$knots, 
+               #                   boundary.knots=args$knots$s$boundary.knots, 
+               #                   degree=args$degree),
+               "smooth" = mboost_intern(xind, knots = args$knots$s$knots, 
+                                        boundary.knots = args$knots$s$boundary.knots, 
+                                        degree = args$degree, 
+                                        fun = "bsplines"),
+               "linear" = matrix(c(rep(1, length(xind)), xind), ncol = 2),
+               "constant"=  matrix(c(rep(1, length(xind))), ncol = 1))
   
   colnames(Bs) <- paste(xname, 1:ncol(Bs), sep="")
     
@@ -665,12 +777,15 @@ X_conc <- function(mf, vary, args) {
       warning( sQuote("df"), " equal to rank of null space ",
                "(unpenalized part of P-spline);\n  ",
                "Consider larger value for ", sQuote("df"),
-               " or set ", sQuote("center = TRUE"), ".", immediate.=TRUE)
+               ## " or set ", sQuote("center = TRUE"), 
+               ".", immediate.=TRUE)
     if (rns > args$df)
       stop("not possible to specify ", sQuote("df"),
            " smaller than the rank of the null space\n  ",
            "(unpenalized part of P-spline). Use larger value for ",
-           sQuote("df"), " or set ", sQuote("center = TRUE"), ".")
+           sQuote("df"), 
+           ## " or set ", sQuote("center = TRUE"), 
+           ".")
   }
   
   # tidy up workspace 
@@ -683,7 +798,7 @@ X_conc <- function(mf, vary, args) {
 #' @export
 ### P-spline base learner for signal matrix with index vector
 bconcurrent <- function(x, s, time, index = NULL, #by = NULL, 
-                        knots = 10, boundary.knots = NULL, degree = 3, differences = 2, df = 4, 
+                        knots = 10, boundary.knots = NULL, degree = 3, differences = 1, df = 4, 
                         lambda = NULL, #center = FALSE, 
                         cyclic = FALSE
 ){
@@ -694,14 +809,19 @@ bconcurrent <- function(x, s, time, index = NULL, #by = NULL,
   cll[[1]] <- as.name("bconcurrent")
   #print(cll)
   
-  if(!isMATRIX(x) && is.null(index)) stop("signal has to be a matrix for regular response")
-  if(isMATRIX(x) && NCOL(x)!=length(s)) stop("Dimension of x and s do not match.")
-  if(!isMATRIX(x) && length(x)!=length(s)) stop("Dimension of x and s do not match.")
+  if(!mboost_intern(x, fun = "isMATRIX") && is.null(index)) stop("signal has to be a matrix for regular response")
+  if( mboost_intern(x, fun = "isMATRIX") && NCOL(x)!=length(s)) stop("Dimension of x and s do not match.")
+  if(!mboost_intern(x, fun = "isMATRIX") && length(x)!=length(s)) stop("Dimension of x and s do not match.")
   
   varnames <- all.vars(cll)
   
   if(!is.atomic(s)) stop("index of signal has to be a vector")
   if(!is.atomic(time)) stop("index of response has to be a vector")
+  
+  if(substitute(time)==substitute(s)){
+    #warning("Do not use the same variable t as time-variable in y(t) and in x(t).")
+    warning("Do not use the same variable for s and time in bconcurrent().")
+  }
   
   # compare range of index signal and index response
   # the index of the signal s, has to contain all values of time
@@ -711,11 +831,13 @@ bconcurrent <- function(x, s, time, index = NULL, #by = NULL,
   xname <- varnames[1]
   indname <- varnames[2]
   indnameY <- varnames[3]
+  if(length(varnames)==2) indnameY <- varnames[2]
   attr(x, "indexY") <- time
   attr(x, "indnameY") <- indnameY
   attr(x, "id") <- index
   
-  if(isMATRIX(x) && is.null(colnames(x))) colnames(x) <- paste(xname, 1:ncol(x), sep="_")
+  if(mboost_intern(x, fun = "isMATRIX") && 
+     is.null(colnames(x))) colnames(x) <- paste(xname, 1:ncol(x), sep="_")
   attr(x, "signalIndex") <- s
   attr(x, "xname") <- xname
   attr(x, "indname") <- indname 
@@ -733,7 +855,8 @@ bconcurrent <- function(x, s, time, index = NULL, #by = NULL,
   
   vary <- ""
   
-  CC <- all(Complete.cases(mf))
+  # CC <- all(Complete.cases(mf))
+  CC <- all(mboost_intern(mf, fun = "Complete.cases"))
   if (!CC)
     warning("base-learner contains missing values;\n",
             "missing values are excluded per base-learner, ",
@@ -805,7 +928,9 @@ bconcurrent <- function(x, s, time, index = NULL, #by = NULL,
     })
   class(ret) <- "blg"
   
-  ret$dpp <- bl_lin(ret, Xfun = X_conc, args = temp$args)
+  # ret$dpp <- bl_lin(ret, Xfun = X_conc, args = temp$args)
+  ret$dpp <- mboost_intern(ret, Xfun = X_conc, args = temp$args, fun = "bl_lin")
+  
   return(ret)
 }
 
@@ -827,7 +952,7 @@ bconcurrent <- function(x, s, time, index = NULL, #by = NULL,
 
 ### hyper parameters for signal baselearner with P-splines
 hyper_hist <- function(mf, vary, knots = 10, boundary.knots = NULL, degree = 3,
-                         differences = 2, df = 4, lambda = NULL, center = FALSE,
+                         differences = 1, df = 4, lambda = NULL, center = FALSE,
                          cyclic = FALSE, constraint = "none", deriv = 0L, 
                          Z=NULL, s=NULL, time=NULL, limits=NULL, 
                          standard="no", intFun=integrationWeightsLeft,  
@@ -874,9 +999,10 @@ hyper_hist <- function(mf, vary, knots = 10, boundary.knots = NULL, degree = 3,
     stop("constraints not implemented for cyclic B-splines")
   stopifnot(is.numeric(deriv) & length(deriv) == 1)
   
+  ## prediction is usually set in/by newX()
   list(knots = ret, degree = degree, differences = differences,
        df = df, lambda = lambda, center = center, cyclic = cyclic,
-       Ts_constraint = constraint, deriv = deriv, 
+       Ts_constraint = constraint, deriv = deriv, prediction = FALSE, 
        Z = Z, s = s, time = time, limits = limits, 
        standard = standard, intFun = intFun, 
        inS = inS, inTime = inTime, 
@@ -918,34 +1044,22 @@ X_hist <- function(mf, vary, args, getDesign=TRUE) {
   
   # compute design-matrix in s-direction
   Bs <- switch(args$inS, 
-                # B-spline basis of specified degree 
-                "smooth" = bsplines(xind, knots=args$knots$s$knots, 
-                                    boundary.knots=args$knots$s$boundary.knots, 
-                                    degree=args$degree),
-                "linear" = matrix(c(rep(1, length(xind)), xind), ncol=2),
-                "constant"=  matrix(c(rep(1, length(xind))), ncol=1))
+               # B-spline basis of specified degree 
+               #"smooth" = bsplines(xind, knots=args$knots$s$knots, 
+               #                    boundary.knots=args$knots$s$boundary.knots, 
+               #                    degree=args$degree),
+               "smooth" = mboost_intern(xind, knots = args$knots$s$knots, 
+                                        boundary.knots = args$knots$s$boundary.knots, 
+                                        degree = args$degree, 
+                                        fun = "bsplines"),
+               "linear" = matrix(c(rep(1, length(xind)), xind), ncol = 2),
+               "constant"=  matrix(c(rep(1, length(xind))), ncol = 1))
   
   colnames(Bs) <- paste(xname, 1:ncol(Bs), sep="")
   
   # integration weights 
   L <- args$intFun(X1=X1, xind=xind)
   # print(L[1,])
-  
-  ## see Scheipl and Greven: Identifiability in penalized function-on-function regression models  
-  ## <FIXME> only check identifiability for smooth effects?
-  ## <FIXME> check identifiability for historic effect in the same way as for functional effect?
-  if(args$check.ident && args$inS=="smooth"){
-    K1 <- diff(diag(ncol(Bs)), differences = args$differences)
-    K1 <- crossprod(K1)
-    res_check <- check_ident(X1=X1, L=L, Bs=Bs, K=K1, xname=xname, penalty=args$penalty)
-    args$penalty <- res_check$penalty
-    args$logCondDs <- res_check$logCondDs
-    args$overlapKe <- res_check$overlapKe
-    args$maxK <- res_check$maxK
-  }
-  
-  # X_hist was only run to check for identifiability
-  #if(!getDesign) return(list(args=args))
   
   ## Weighting with matrix of functional covariate
   #X1 <- L*X1 ## -> do the integration weights more sophisticated!!
@@ -1001,30 +1115,43 @@ X_hist <- function(mf, vary, args, getDesign=TRUE) {
   ### Compute the design matrix as sparse or normal matrix 
   ### depending on dimensions of the final design matrix
   MATRIX <- any(c(nrow(ind0), ncol(Bs)) > c(500, 50)) #MATRIX <- any(dim(X) > c(500, 50))
-  MATRIX <- MATRIX && options("mboost_useMatrix")$mboost_useMatrix
+  MATRIX <- MATRIX && options("mboost_useMatrix")$mboost_useMatrix 
+
   if(MATRIX){
     #message("use sparse matrix in X_hist")
     diag <- Diagonal
     cbind <- cBind
-    ### compute the design matrix as sparse matrix
+    ###### <FIXME> construction of X1des directly as sparse matrix does not work 
+    
+    #     ### compute the design matrix as sparse matrix
+    #     if(args$format == "wide"){
+    #       tempIndexDesign <- which(!ind0, arr.ind=TRUE)
+    #       tempIndexX1 <- cbind(rep(1:nobs, length.out=nrow(tempIndexDesign)), tempIndexDesign[,2] )
+    #       X1des <- sparseMatrix(i=tempIndexDesign[,1], j=tempIndexDesign[,2],
+    #                             x=X1[tempIndexX1], dims=dim(ind0))  
+    #       # object.size(X1des)
+    #       rm(tempIndexX1, tempIndexDesign)
+    #     }else{ # long format
+    #       tempj <- unlist(apply(!ind0, 1, which)) # in which columns are the values? 
+    #       ## i: row numbers: one row number per observation of response, 
+    #       #     repeat the row number for each entry
+    #       X1des <- sparseMatrix(i=rep(1:length(id), times=rowSums(!ind0)), j=tempj,
+    #                             x=X1[cbind(rep(id, t=rowSums(!ind0)), tempj)], dims=dim(ind0))
+    #       # object.size(X1des)
+    #       rm(tempj)       
+    #     }
+    
+    ###### <FIXME> instead: build the matrix as dense matrix and convert it into a sparse matrix
     if(args$format == "wide"){
-      tempIndexDesign <- which(!ind0, arr.ind=TRUE)
-      tempIndexX1 <- cbind(rep(1:nobs, length.out=nrow(tempIndexDesign)), tempIndexDesign[,2] )
-      X1des <- sparseMatrix(i=tempIndexDesign[,1], j=tempIndexDesign[,2],
-                            x=X1[tempIndexX1], dims=dim(ind0))  
-      # object.size(X1des)
-      rm(tempIndexX1, tempIndexDesign)
-    }else{ # long format
-      tempj <- unlist(apply(!ind0, 1, which)) # in which columns are the values? 
-      ## i: row numbers: one row number per observation of response, 
-      #     repeat the row number for each entry
-      ## index for the X1 matrix taking each value of original matrix
-      tempIndex <- cbind(rep(unique(id), tapply(apply(!ind0, 1, sum), id, sum)), tempj )
-      X1des <- sparseMatrix(i=rep(1:length(id), times=rowSums(!ind0)), j=tempj,
-                            x=X1[ tempIndex], dims=dim(ind0))
-      # object.size(X1des)
-      rm(tempj, tempIndex) 
+      ### expand the design matrix for all observations (yind is equal for all observations!)
+      ### the response is a vector (y1(t1), y2(t1), ... , yn(t1), yn(tG))
+      X1des <- X1[rep(1:nobs, times=length(yind)), ]
+    } else{ # yind is over all observations in long format
+      X1des <- X1[id, ] 
     }
+    X1des[ind0] <- 0    
+    X1des <- Matrix(X1des, sparse=TRUE) # convert into sparse matrix
+    
   }else{ # small matrices: do not use Matrix
     if(args$format == "wide"){
       ### expand the design matrix for all observations (yind is equal for all observations!)
@@ -1037,65 +1164,34 @@ X_hist <- function(mf, vary, args, getDesign=TRUE) {
   }
   
   ## set up matrix with adequate integration and standardization weights
-  ## start with a matrix of integratio weights
-  ## case of "no"n standardization
+  ## start with a matrix of integration weights
+  ## case of "no" standardization
   Lnew <- args$intFun(X1des, xind)
   Lnew[ind0] <- 0
   
-  ## Transform the design matrix to the square 
-  ## then s is always [0,1]
-  if(FALSE && args$stand == "transform" && is.null(args$xindStand)){
-    
-    X1desOld <- X1des
-    xindStand <- (xind - min(xind)) / (max(xind) - min(xind))
-    
-    X1des <- t(sapply(1:nrow(X1desOld), function(i){
-      if(sum(!ind0[i,])==1){
-        ret <- rep( X1desOld[i,!ind0[i,]], ncol(X1desOld))
-      }else{
-        xindHelp <- (xind[!ind0[i,]]-min(xind[!ind0[i,]])) / 
-          (max(xind[!ind0[i,]]) - min(xind[!ind0[i]]))
-        ret <- approx(xindHelp, X1desOld[i,!ind0[i,]], xout=xindStand)$y
-      }
-      return(ret)
-    } ))
-    rm(X1desOld)
-    
-    ## compute integration weights on standardized xind
-    Lnew <- args$intFun(X1des, xindStand)    
-    ## use standardized xind
-    xind <- xindStand 
-    ## <FIXME> use standardized xind? 
-    ## attr(mf[[1]], "signalIndex") <- xindStand
-    ## args$xind <- xindStand 
-    if(getDesign){
-      args$xindStand <- xindStand
-    } 
-    ## args$limits <- function(s,t){ return(FALSE) }
-  }
-  
   ## Standardize with exact length of integration interval
   ##  (1/t-t0) \int_{t0}^t f(s) ds
-  if(args$stand == "length"){
+  if(args$standard == "length"){
     ## use fundamental theorem of calculus 
     ## \lim t->t0- (1/t-t0) \int_{t0}^t f(s) ds = f(t0)
     ## -> integration weight in s-direction should be 1
     ## integration weights in s-direction always sum exactly to 1, 
     ## good for small number of observations!
     args$vecStand <- rowSums(Lnew)
-    Lnew <- Lnew * 1/rowSums(Lnew)
+    args$vecStand[args$vecStand==0] <- 1 ## cannnot divide 0/0, instead divide 0/1
+    Lnew <- Lnew * 1/args$vecStand
   } 
   
   ## use time of current observation for standardization
   ##  (1/t) \int_{t0}^t f(s) ds
-  if(args$stand=="time"){
-    if(any(yindHelp < 0)) stop("For standardization with time, time must be non-negative")
+  if(args$standard=="time"){
+    if(any(yindHelp <= 0)) stop("For standardization with time, time must be positive.")
     ## Lnew <- matrix(1, ncol=ncol(X1des), nrow=nrow(X1des))
     ## Lnew[ind0] <- 0  
     ## use fundamental theorem of calculus 
     ## \lim t->0+ (1/t) \int_0^t f(s) ds = f(0), if necessary
     ## (as previously X*L, use now X*(1/L) for cases with one single point)
-    yindHelp[yindHelp==0] <- L[1,1] 
+    yindHelp[yindHelp==0] <- L[1,1] # impossible! 
     # standFact <- 1/yindHelp 
     args$vecStand <- yindHelp
     Lnew <- Lnew * 1/yindHelp 
@@ -1110,31 +1206,63 @@ X_hist <- function(mf, vary, args, getDesign=TRUE) {
   # Design matrix is product of expanded X1 and basis expansion over xind 
   X1des <- X1des %*% Bs
   
+  
+  ## see Scheipl and Greven: Identifiability in penalized function-on-function regression models  
+  ## <FIXME> only check identifiability for smooth effects?
+  ## <FIXME> check identifiability for historic effect in the same way as for functional effect?
+  if(args$check.ident && args$inS=="smooth"){
+    K1 <- diff(diag(ncol(Bs)), differences = args$differences)
+    K1 <- crossprod(K1)
+    # compute the kernel overlap cumulative?
+    cumOverlap <- FALSE 
+    # only for historical model of past special case of cumOverlap meaningful
+    # use the limits function to compute chech measures on corresponding subsets of x(s)
+    if(!is.function(args$limits) && args$limits %in% c("s<t", "s<=t") ) cumOverlap <- TRUE 
+    res_check <- check_ident(X1=X1, L=L, Bs=Bs, K=K1, xname=xname, 
+                             penalty=args$penalty, 
+                             cumOverlap=cumOverlap, 
+                             limits=args$limits, yind=yind, id=id, 
+                             X1des=X1des, ind0=ind0, xind=xind)
+    args$penalty <- res_check$penalty
+    args$logCondDs <- res_check$logCondDs
+    args$logCondDs_hist <- res_check$logCondDs_hist
+    args$overlapKe <- res_check$overlapKe
+    args$cumOverlapKe <- res_check$cumOverlapKe
+    args$maxK <- res_check$maxK
+  }
+  
+  # X_hist was only run to check for identifiability
+  #if(!getDesign) return(list(args=args))
+  
   # wide: design matrix over index of response for one response
   # long: design matrix over index of response (yind has long format!)
   Bt <- switch(args$inTime, 
-                # B-spline basis of specified degree 
-                "smooth" = bsplines(yind, knots=args$knots$time$knots, 
-                                    boundary.knots=args$knots$time$boundary.knots, 
-                                    degree=args$degree),
-                "linear" = matrix(c(rep(1, length(yind)), yind), ncol=2),
-                "constant"=  matrix(c(rep(1, length(yind))), ncol=1))
+               # B-spline basis of specified degree 
+               #"smooth" = bsplines(yind, knots=args$knots$time$knots, 
+               #                    boundary.knots=args$knots$time$boundary.knots, 
+               #                    degree=args$degree),
+               "smooth" = mboost_intern(yind, knots = args$knots$time$knots, 
+                                        boundary.knots = args$knots$time$boundary.knots, 
+                                        degree = args$degree, 
+                                        fun = "bsplines"),
+               "linear" = matrix(c(rep(1, length(yind)), yind), ncol = 2),
+               "constant"=  matrix(c(rep(1, length(yind))), ncol = 1))
     
   # stack design-matrix of response nobs times in wide format
   if(args$format == "wide"){
     Bt <- Bt[rep(1:length(yind), each=nobs), ]
   }
   
-  #browser()
-  
-  if(!isMATRIX(Bt)) Bt <- matrix(Bt, ncol=1)
+  if(! mboost_intern(Bt, fun = "isMATRIX") ) Bt <- matrix(Bt, ncol=1)
     
   # calculate row-tensor
   # X <- (X1 %x% t(rep(1, ncol(X2))) ) * ( t(rep(1, ncol(X1))) %x% X2  )
   dimnames(Bt) <- NULL # otherwise warning "dimnames [2] mismatch..."
   X <- X1des[,rep(1:ncol(Bs), each=ncol(Bt))] * Bt[,rep(1:ncol(Bt), times=ncol(Bs))]
   
-  if(!isMATRIX(X)) X <- matrix(X, ncol=1)
+  if(! mboost_intern(X, fun = "isMATRIX") ) X <- matrix(X, ncol=1)
+  
+  colnames(X) <- paste0(xname, 1:ncol(X))
   
   ### Penalty matrix: product differences matrix for smooth effect
   if(args$inS == "smooth"){
@@ -1168,15 +1296,18 @@ X_hist <- function(mf, vary, args, getDesign=TRUE) {
       warning( sQuote("df"), " equal to rank of null space ",
                "(unpenalized part of P-spline);\n  ",
                "Consider larger value for ", sQuote("df"),
-               " or set ", sQuote("center = TRUE"), ".", immediate.=TRUE)
+               ## " or set ", sQuote("center = TRUE"), 
+               ".", immediate.=TRUE)
     if (rns > args$df)
       stop("not possible to specify ", sQuote("df"),
            " smaller than the rank of the null space\n  ",
            "(unpenalized part of P-spline). Use larger value for ",
-           sQuote("df"), " or set ", sQuote("center = TRUE"), ".")
+           sQuote("df"), 
+           ## " or set ", sQuote("center = TRUE"), 
+           ".")
   }
   
-  # save matrices to compute numbers for identifiability checks
+  # save matrices to compute identifiability checks
   args$Bs <- Bs
   args$X1des <- X1des
   args$K1 <- K1
@@ -1198,7 +1329,7 @@ bhist <- function(x, s, time, index = NULL, #by = NULL,
                   limits="s<=t", standard=c("no", "time", "length"), ##, "transform"
                   intFun=integrationWeightsLeft, 
                   inS=c("smooth","linear","constant"), inTime=c("smooth","linear","constant"),
-                  knots = 10, boundary.knots = NULL, degree = 3, differences = 2, df = 4,
+                  knots = 10, boundary.knots = NULL, degree = 3, differences = 1, df = 4,
                   lambda = NULL, #center = FALSE, cyclic = FALSE
                   penalty = c("ps", "pss"), check.ident = FALSE
 ){
@@ -1217,13 +1348,18 @@ bhist <- function(x, s, time, index = NULL, #by = NULL,
   inTime <- match.arg(inTime)
   #print(inS)
   
-  if(!isMATRIX(x)) stop("signal has to be a matrix")
-  if(ncol(x)!=length(s)) stop("Dimension of x and s do not match.")
+  if(! mboost_intern(x, fun = "isMATRIX") ) stop("signal has to be a matrix")
+  if(ncol(x) != length(s)) stop("Dimension of x and s do not match.")
   
   varnames <- all.vars(cll)
   
   if(!is.atomic(s)) stop("index of signal has to be a vector")
   if(!is.atomic(time)) stop("index of response has to be a vector")
+  
+  if(substitute(time)==substitute(s)){
+    #warning("Do not use the same variable t as time-variable in y(t) and in x(t).")
+    warning("Do not use the same variable for s and time in bhist().")
+  }
   
   # compare range of index signal and index response
   # minimal value of the signal-index has to be smaller than the response-index
@@ -1236,6 +1372,7 @@ bhist <- function(x, s, time, index = NULL, #by = NULL,
   xname <- varnames[1]
   indname <- varnames[2]
   indnameY <- varnames[3]
+  if(length(varnames)==2) indnameY <- varnames[2]
   if(is.null(colnames(x))) colnames(x) <- paste(xname, 1:ncol(x), sep="_")
   attr(x, "signalIndex") <- s
   attr(x, "xname") <- xname
@@ -1247,17 +1384,17 @@ bhist <- function(x, s, time, index = NULL, #by = NULL,
   mf <- data.frame("z"=I(x))
   names(mf) <- xname 
   
-  #   if(all(round(colSums(mf, na.rm = TRUE), 4)!=0)){
-  #     warning(xname, " is not centered. 
-  #     Functional covariates should be mean-centered in each measurement point.")
-  #   }
+  if(!all( abs(colMeans(x, na.rm = TRUE)) < .Machine$double.eps*10^10)){
+    message(xname, " is not centered per column, inducing a non-centered effect.")
+  }
   
   #   mf <- mfL
   #   names(mf) <- varnames
   
   vary <- ""
   
-  CC <- all(Complete.cases(mf))
+  # CC <- all(Complete.cases(mf))
+  CC <- all(mboost_intern(mf, fun = "Complete.cases"))
   if (!CC)
     warning("base-learner contains missing values;\n",
             "missing values are excluded per base-learner, ",
@@ -1265,7 +1402,6 @@ bhist <- function(x, s, time, index = NULL, #by = NULL,
             " numbers of observations.")
   
   #index <- NULL 
-  #browser()
   
   ## call X_hist in oder to compute parameter settings, e.g. 
   ## the transformation matrix Z, shrinkage penalty, identifiability problems...
@@ -1338,7 +1474,8 @@ bhist <- function(x, s, time, index = NULL, #by = NULL,
   class(ret) <- "blg"
   
   ### X_hist is for data in wide format with regular response
-  ret$dpp <- bl_lin(ret, Xfun = X_hist, args = temp$args) 
+  # ret$dpp <- bl_lin(ret, Xfun = X_hist, args = temp$args) 
+  ret$dpp <- mboost_intern(ret, Xfun = X_hist, args = temp$args, fun = "bl_lin")
   return(ret)
 }
 
@@ -1352,33 +1489,228 @@ bhist <- function(x, s, time, index = NULL, #by = NULL,
 # extract(test)[1:10, 1:20]
 
 
+### hyper parameters for signal baselearner with eigenfunctions as bases, FPCA-based
+hyper_fpc <- function(mf, vary, df = 4, lambda = NULL, 
+                      pve = 0.99, npc = NULL, npc.max = 15, getEigen=TRUE, 
+                      s=NULL) {
+  ## prediction is usually set in/by newX() 
+  list(df = df, lambda = lambda, pve = pve, npc = npc, npc.max = npc.max, 
+       getEigen = getEigen, s = s, prediction = FALSE)
+}
+
+### model.matrix for FPCA based functional base-learner
+X_fpc <- function(mf, vary, args) {  
+  #print("X_fpc") 
+  stopifnot(is.data.frame(mf))
+  xname <- names(mf)
+  X1 <- as.matrix(mf)
+  xind <- attr(mf[[1]], "signalIndex")
+  if(is.null(xind)) xind <- args$s # if the attribute is NULL use the s of the model fit
+  #print(xind)
+  
+  if(ncol(X1)!=length(xind)) stop(xname, ": Dimension of signal matrix and its index do not match.")
+  
+  ## <FIXME> is the following statemen on fpca.sc() correct??
+  ## does it work correctly with argvals = xind
+  
+  ## do FPCA on X1 (code of refund::ffpc adapted) using xind as argvals 
+  if(is.null(args$klX)){
+    decomppars <- list(argvals = xind, pve = args$pve, npc = args$npc, useSymm = TRUE)
+    decomppars$Y <- X1
+    ## functional covariate is per default centered per time-point
+    klX <- do.call(fpca.sc, decomppars)
+    
+    ## add the solution of the decomposition to args
+    args$klX <- klX
+    args$klX$xind <- xind
+    
+    ## only use part of the eigen-functions! 
+    args$subset <- 1:min(ncol(klX$scores), args$npc.max)
+    ## args$a <- max(xind) - min(xind)
+    
+    ## scores \xi_{ik}: rows i=1,..., N and columns k=1,...,K
+    ## are the design matrix
+    X <- klX$scores[ , args$subset, drop = FALSE]
+    
+    ## scores can be computed as \xi_{ik}=\int X1cen_i(s) \phi_k(s) ds 
+    ## all(round(klX$scores,6) == round(scale(X1, center=klX$mu, scale=FALSE) %*% klX$efunctions, 6))
+    
+  }else{
+    klX <- args$klX 
+    ## compute scores on new X1 observations
+    if(ncol(X1) == length(klX$mu) && all(args$s == xind)){
+      ## is the same as "X <- klX$scores[ , args$subset, drop = FALSE]" if klX is FPCA on X1 
+      X <- (scale(X1, center=klX$mu, scale=FALSE) %*% klX$efunctions)[ , args$subset, drop = FALSE]
+      ## <FIXME> use integration weights?
+      #X <- 1/args$a*(scale(X1, center=klX$mu, scale=FALSE) %*% klX$efunctions)[ , args$subset, drop = FALSE]
+    }else{
+      ##stop("In bfpc the grid for the functional covariate has to be the same as in the model fit!")
+      ## <FIXME> is this linear interpolation of the basis functions correct?
+      approxEfunctions <- matrix(NA, nrow=length(xind), ncol=length(args$subset))
+      for(i in 1:ncol(klX$efunctions[ , args$subset, drop = FALSE])){
+        approxEfunctions[,i] <- approx(x=args$klX$xind, y=klX$efunctions[,i], xout=xind)$y
+      }
+      approxMu <- approx(x=args$klX$xind, y=klX$mu, xout=xind)$y
+      X <-(scale(X1, center=approxMu, scale=FALSE) %*% approxEfunctions)
+      ## <FIXME> use integration weights?
+      #X <- 1/args$a*(scale(X1, center=approxMu, scale=FALSE) %*% approxEfunctions)
+    }  
+  }
+
+  colnames(X) <- paste(xname, ".PC", 1:ncol(X), sep = "")
+  
+  ### Penalty matrix: diagonal matrix of inverse eigen-values
+  ### implicit assumption: important eigen-functions of X process 
+  ### are more important in shape of beta
+  ## K <- diag(1/klX$evalues[args$subset])
+  
+  ### use the identity matrix for penalization
+  ### all eigenfunctions are penalized with the same strength
+  K <- diag(rep(1, length=length(args$subset)))
+  
+  ### no penalty at all, as regularization is done by truncating the number of PCs used
+  ### gives bad estimates
+  # K <- matrix(0, ncol=length(args$subset), nrow=length(args$subset))
+  
+  return(list(X = X, K = K, args=args))
+}
+
+
+
+###############################################################################
+### FPCA based base-learner for signal matrix with index vector
+### inspired by refund::fpca.sc
+#' @rdname bsignal
+#' @export
+bfpc <- function(x, s, index = NULL, df = 4, 
+                 lambda = NULL, pve = 0.99, npc = NULL, npc.max = 15, getEigen=TRUE
+){
+  
+  if (!is.null(lambda)) df <- NULL
+  
+  cll <- match.call()
+  cll[[1]] <- as.name("bfpc")
+  #print(cll)
+  
+  if(! mboost_intern(x, fun = "isMATRIX") ) stop("signal has to be a matrix")
+  
+  varnames <- all.vars(cll)
+  
+  # Reshape mfL so that it is the dataframe of the signal with the index as attribute
+  xname <- varnames[1]
+  indname <- varnames[2] 
+  if(is.null(colnames(x))) colnames(x) <- paste(xname, 1:ncol(x), sep="_")
+  attr(x, "signalIndex") <- s
+  attr(x, "xname") <- xname
+  attr(x, "indname") <- indname
+  
+  mf <- data.frame("z"=I(x))
+  names(mf) <- xname
+  
+  vary <- ""
+  
+  ## <FIXME> for a FPCA based base-learner the X can contain missings!
+  # CC <- all(Complete.cases(mf))
+  CC <- all(mboost_intern(mf, fun = "Complete.cases"))
+  if (!CC)
+    warning("base-learner contains missing values;\n",
+            "missing values are excluded per base-learner, ",
+            "i.e., base-learners may depend on different",
+            " numbers of observations.")
+  
+  #index <- NULL
+  
+  ## call X_fpc in oder to compute parameter settings, e.g. 
+  ## the basis functions, based on FPCA 
+  temp <- X_fpc(mf, vary, 
+                args = hyper_fpc(mf, vary, df = df, lambda = lambda, 
+                                 pve = pve, npc = npc, npc.max = npc.max, 
+                                 s = s))
+  ## save the FPCA in args
+  ##str(temp$args)
+  
+  ret <- list(model.frame = function() 
+    if (is.null(index)) return(mf) else{
+      mftemp <- mf
+      mf <- mftemp[index,,drop = FALSE] # this is necessary to pass the attributes
+      attributes(mftemp[,xname])
+      attr(mf[,xname], "signalIndex") <- attr(mftemp[,xname], "signalIndex")
+      attr(mf[,xname], "xname") <- attr(mftemp[,xname], "xname")
+      attr(mf[,xname], "indname") <- attr(mftemp[,xname], "indname")
+      return(mf)
+    } ,
+    get_call = function(){
+      cll <- deparse(cll, width.cutoff=500L)
+      if (length(cll) > 1)
+        cll <- paste(cll, collapse="")
+      cll
+    },
+    get_data = function() mf,
+    get_index = function() index,
+    get_vary = function() vary,
+    get_names = function(){
+      attr(xname, "indname") <- indname 
+      xname 
+    }, #colnames(mf),
+    set_names = function(value) {
+      #if(length(value) != length(colnames(mf)))
+      if(length(value) != names(mf[1]))
+        stop(sQuote("value"), " must have same length as ",
+             sQuote("names(mf[1])"))
+      for (i in 1:length(value)){
+        cll[[i+1]] <<- as.name(value[i])
+      }
+      attr(mf, "names") <<- value
+    })
+  class(ret) <- "blg"
+  
+  # ret$dpp <- bl_lin(ret, Xfun = X_fpc, args = temp$args)
+  ret$dpp <- mboost_intern(ret, Xfun = X_fpc, args = temp$args, fun = "bl_lin")
+  
+  rm(temp)
+  
+  return(ret)
+}
 
 
 
 
 
 
-#################################
+#######################################################################################
 # Base-learner with constraints for smooth varying scalar covariate
 
 ### almost equal to X_bbs() of package mboost
 ### difference: implements sum-to-zero-constraint over index of response
 X_bbsc <- function(mf, vary, args) {
-  
+
   stopifnot(is.data.frame(mf))
   mm <- lapply(which(colnames(mf) != vary), function(i) {
-    X <- bsplines(mf[[i]],
-                  knots = args$knots[[i]]$knots,
-                  boundary.knots = args$knots[[i]]$boundary.knots,
-                  degree = args$degree, 
-                  Ts_constraint = args$Ts_constraint,
-                  deriv = args$deriv)
+    # X <- bsplines(mf[[i]],
+    #              knots = args$knots[[i]]$knots,
+    #              boundary.knots = args$knots[[i]]$boundary.knots,
+    #              degree = args$degree, 
+    #              Ts_constraint = args$Ts_constraint,
+    #              deriv = args$deriv)
+    X <- mboost_intern(mf[[i]],
+                       knots = args$knots[[i]]$knots,
+                       boundary.knots = args$knots[[i]]$boundary.knots,
+                       degree = args$degree, 
+                       Ts_constraint = args$Ts_constraint,
+                       deriv = args$deriv, 
+                       fun = "bsplines")
     if (args$cyclic) {
-      X <- cbs(mf[[i]],
-               knots = args$knots[[i]]$knots,
-               boundary.knots = args$knots[[i]]$boundary.knots,
-               degree = args$degree,
-               deriv = args$deriv)
+      # X <- cbs(mf[[i]],
+      #         knots = args$knots[[i]]$knots,
+      #         boundary.knots = args$knots[[i]]$boundary.knots,
+      #         degree = args$degree,
+      #         deriv = args$deriv)
+      X <- mboost_intern(mf[[i]],
+                         knots = args$knots[[i]]$knots,
+                         boundary.knots = args$knots[[i]]$boundary.knots,
+                         degree = args$degree,
+                         deriv = args$deriv,
+                         fun = "cbs")
     }
     class(X) <- "matrix"
     return(X)
@@ -1533,18 +1865,38 @@ X_bbsc <- function(mf, vary, args) {
   
   #----------------------------------
   ### <SB> Calculate constraints
-  
-  # If the argument Z is not NULL use the given Z (important for prediction!)
-  if(is.null(args$Z)){
-    C <- t(X) %*% rep(1, nrow(X))
-    Q <- qr.Q(qr(C), complete=TRUE) # orthonormal matrix of QR decomposition
-    args$Z <- Q[  , 2:ncol(Q)] # only keep last columns    
+
+  ## for center = TRUE, design matrix does not contain constant part 
+  if(args$center != FALSE){ 
+    
+    ## center the columns of the design matrix 
+    ## Z contains column means
+    # If the argument Z is not NULL use the given Z (important for prediction!)
+    if(is.null(args$Z)){
+      args$Z <- colMeans(X)
+    }
+    
+    ### Transform design and penalty matrix 
+    ## use column means of original design matrix
+    X <- scale(X, center = args$Z, scale = FALSE)
+    
+  }else{
+    ## sum-to-zero constraint - orthogonal to constant part, 
+    ## cf. Web Appendix A of Brockhaus et al. 2015
+    
+    # If the argument Z is not NULL use the given Z (important for prediction!)
+    if(is.null(args$Z)){
+      C <- t(X) %*% rep(1, nrow(X))
+      Q <- qr.Q(qr(C), complete=TRUE) # orthonormal matrix of QR decomposition
+      args$Z <- Q[  , 2:ncol(Q)] # only keep last columns    
+    }
+    
+    ### Transform design and penalty matrix
+    X <- X %*% args$Z
+    K <- t(args$Z) %*% K %*% args$Z
+    #print(args$Z)
   }
-  
-  ### Transform design and penalty matrix
-  X <- X %*% args$Z
-  K <- t(args$Z) %*% K %*% args$Z
-  #print(args$Z)
+
   #----------------------------------
   
   ## compare specified degrees of freedom to dimension of null space
@@ -1554,19 +1906,21 @@ X_bbsc <- function(mf, vary, args) {
       warning( sQuote("df"), " equal to rank of null space ",
                "(unpenalized part of P-spline);\n  ",
                "Consider larger value for ", sQuote("df"),
-               " or set ", sQuote("center = TRUE"), ".", immediate.=TRUE)
+               " or set ", sQuote("center != FALSE"), ".", immediate.=TRUE)
     if (rns > args$df)
       stop("not possible to specify ", sQuote("df"),
            " smaller than the rank of the null space\n  ",
            "(unpenalized part of P-spline). Use larger value for ",
-           sQuote("df"), " or set ", sQuote("center = TRUE"), ".")
+           sQuote("df"), " or set ", sQuote("center != FALSE"), ".")
   }
+  
   return(list(X = X, K = K, args = args))
 }
 
 ## add the parameter Z to the arguments of hyper_bbs()
 hyper_bbsc <- function(Z, ...){
-  return(c(hyper_bbs(...), list(Z=Z)))
+  ret <- c(mboost_intern(..., fun = "hyper_bbs"), list(Z=Z))
+  return(ret)
 }
 
 
@@ -1594,10 +1948,10 @@ hyper_bbsc <- function(Z, ...){
 #' @param df trace of the hat matrix for the base-learner defining the 
 #' base-learner complexity. Low values of \code{df} correspond to a 
 #' large amount of smoothing and thus to "weaker" base-learners.
-#' @param lambda smoothing penalty, computed from \code{df} when 
-#' \code{df} is specified.
+#' @param lambda smoothing parameter of the penalty, computed from \code{df} when 
+#' \code{df} is specified. 
 #' @param K in \code{bolsc} it is possible to specify the penalty matrix K
-#' @param center not implemented yet 
+#' @param center experimental implementation! See \code{\link[mboost]{bbs}}. 
 #' @param cyclic  if \code{cyclic = TRUE} the fitted values coincide at 
 #' the boundaries (useful for cyclic covariates such as day time etc.).
 #' @param contrasts.arg Note that a special \code{contrasts.arg} exists in 
@@ -1606,7 +1960,7 @@ hyper_bbsc <- function(Z, ...){
 #' dummy coding as returned by \code{model.matrix(~ x - 1)} were the 
 #' intercept is implicitly included but each factor level gets a 
 #' separate effect estimate (for more details see \code{\link[mboost]{brandom}}).
-#' @param intercept if intercept = TRUE an intercept is added to the design matrix 
+#' @param intercept if \code{intercept = TRUE} an intercept is added to the design matrix 
 #' of a linear base-learner. 
 #' 
 #' @details The base-learners \code{bbsc}, \code{bolsc} and \code{brandomc} are 
@@ -1619,11 +1973,13 @@ hyper_bbsc <- function(Z, ...){
 #' response \eqn{t} constraints that enforce 
 #' \eqn{\sum_i \hat f(z_i, x_i, t) = 0} for all \eqn{t} are used, so that 
 #' effects varying over \eqn{t} can be interpreted as deviations 
-#' from the global functional intercept. 
+#' from the global functional intercept, see Web Appendix A of 
+#' Scheipl et al. (2015) and Web Appendix A of Brockhaus et al. (2015) for details on how to enforce the 
+#' constraints. 
 #' 
 #' Cannot deal with any missing values in the covariates.
 #' 
-#' @return Equally to the base-learners of the package mboost: 
+#' @return Equally to the base-learners of package mboost: 
 #' 
 #' An object of class \code{blg} (base-learner generator) with a 
 #' \code{dpp} function. 
@@ -1637,13 +1993,13 @@ hyper_bbsc <- function(Z, ...){
 #' corresponding base-learners in mboost.
 #' 
 #' @references 
-#' Brockhaus, S., Scheipl, F., Hothorn, T. and Greven, S. (2015). 
-#' The Functional Linear Array Model. Statistical Modelling, in press.
+#' Brockhaus, S., Scheipl, F., Hothorn, T. and Greven, S. (2015): 
+#' The functional linear array model. Statistical Modelling, 15(3), 279-300.
 #' 
-#' Scheipl, F., Staicu, A.-M., and Greven, S. (2014), 
-#' Functional Additive Mixed Models, Journal of Computational and Graphical Statistics, 
-#' in press, DOI 10.1080/10618600.2014.901914.
-#' \url{http://arxiv.org/abs/1207.5947}
+#' Scheipl, F., Staicu, A.-M. and Greven, S. (2015):  
+#' Functional Additive Mixed Models, Journal of Computational and Graphical Statistics, 24(2), 477-501.
+#' 
+#' @author Sarah Brockhaus, Almond Stoecker
 #' 
 #' @keywords models
 #' @aliases brandomc bolsc
@@ -1652,10 +2008,13 @@ bbsc <- function(..., by = NULL, index = NULL, knots = 10, boundary.knots = NULL
                  degree = 3, differences = 2, df = 4, lambda = NULL, center = FALSE,
                  cyclic = FALSE) {
   
-  ## new arguments constraint and dervi are set to their defaults
+  #----------------------------------
+  ## <SB> arguments constraint and dervi of bbs() are set to their defaults
+  ## i.e. no constraints and no derivatives 
   # constraint <- match.arg(constraint)
   constraint <- "none"
   deriv <- 0
+  #----------------------------------
   
   if (!is.null(lambda)) df <- NULL
   
@@ -1687,7 +2046,8 @@ bbsc <- function(..., by = NULL, index = NULL, knots = 10, boundary.knots = NULL
     colnames(mf)[ncol(mf)] <- vary <- deparse(substitute(by))
   }
   
-  CC <- all(Complete.cases(mf))
+  # CC <- all(Complete.cases(mf))
+  CC <- all(mboost_intern(mf, fun = "Complete.cases"))
   if (!CC)
     warning("base-learner contains missing values;\n",
             "missing values are excluded per base-learner, ",
@@ -1697,7 +2057,8 @@ bbsc <- function(..., by = NULL, index = NULL, knots = 10, boundary.knots = NULL
   DOINDEX <- (nrow(mf) > options("mboost_indexmin")[[1]])
   if (is.null(index)) {
     if (!CC || DOINDEX) {
-      index <- get_index(mf)
+      # index <- get_index(mf)
+      index <- mboost_intern(mf, fun = "get_index")
       mf <- mf[index[[1]],,drop = FALSE]
       index <- index[[2]]
     }
@@ -1735,7 +2096,8 @@ bbsc <- function(..., by = NULL, index = NULL, knots = 10, boundary.knots = NULL
     })
   class(ret) <- "blg"
   
-  ret$dpp <- bl_lin(ret, Xfun = X_bbsc, args = temp$args)
+  # ret$dpp <- bl_lin(ret, Xfun = X_bbsc, args = temp$args)
+  ret$dpp <- mboost_intern(ret, Xfun = X_bbsc, args = temp$args, fun = "bl_lin")
   return(ret)
 }
 
@@ -1751,7 +2113,7 @@ bbsc <- function(..., by = NULL, index = NULL, knots = 10, boundary.knots = NULL
 ### model.matrix for constrained ols base-learner with penalty matrix K
 X_olsc <- function(mf, vary, args) {
   
-  if (isMATRIX(mf)) {
+  if ( mboost_intern(mf, fun = "isMATRIX") ) {
     X <- mf
     contr <- NULL
   } else {
@@ -1880,11 +2242,12 @@ bolsc <- function(..., by = NULL, index = NULL, intercept = TRUE, df = NULL,
 
   if(!intercept && length(mf)==1) stop("Intercept has to be TRUE for bolsc with one covariate.")
   
-  if (length(mf) == 1 && ((isMATRIX(mf[[1]]) || is.data.frame(mf[[1]])) &&
+  if (length(mf) == 1 && (( mboost_intern(mf[[1]], fun = "isMATRIX") || 
+                            is.data.frame(mf[[1]])) &&
                             ncol(mf[[1]]) > 1 )) {
     mf <- mf[[1]]
     ### spline bases should be matrices
-    if (isMATRIX(mf) && !is(mf, "Matrix"))
+    if ( mboost_intern(mf, fun = "isMATRIX") && !is(mf, "Matrix"))
       class(mf) <- "matrix"
   } else {
     mf <- as.data.frame(mf)
@@ -1908,7 +2271,8 @@ bolsc <- function(..., by = NULL, index = NULL, intercept = TRUE, df = NULL,
     colnames(mf)[ncol(mf)] <- vary <- deparse(substitute(by))
   }
   
-  CC <- all(Complete.cases(mf))
+  # CC <- all(Complete.cases(mf))
+  CC <- all(mboost_intern(mf, fun = "Complete.cases"))
   if (!CC)
     warning("base-learner contains missing values;\n",
             "missing values are excluded per base-learner, ",
@@ -1921,19 +2285,19 @@ bolsc <- function(..., by = NULL, index = NULL, intercept = TRUE, df = NULL,
     ### try to remove duplicated observations or
     ### observations with missings
     if (!CC || DOINDEX) {
-      index <- get_index(mf)
+      # index <- get_index(mf)
+      index <- mboost_intern(mf, fun = "get_index")
       mf <- mf[index[[1]],,drop = FALSE]
       index <- index[[2]]
     }
   }
-  
+
   ## call X_bbsc in oder to compute the transformation matrix Z, 
   ## Z is saved in args$Z and is used after the model fit
   temp <- X_olsc(mf, vary, 
-                 args = hyper_olsc(
-                   df = df, lambda = lambda, K = K, # use penalty matrix as argument
-                   intercept = intercept, contrasts.arg = contrasts.arg,
-                   Z = NULL))
+                 args = hyper_olsc(df = df, lambda = lambda, 
+                                   intercept = intercept, contrasts.arg = contrasts.arg,
+                                   K = K, Z = NULL)) # use penalty matrix as argument
   
   ret <- list(model.frame = function()
     if (is.null(index)) return(mf) else return(mf[index,,drop = FALSE]),
@@ -1958,17 +2322,21 @@ bolsc <- function(..., by = NULL, index = NULL, intercept = TRUE, df = NULL,
     })
   class(ret) <- "blg"
   
-  ret$dpp <- bl_lin(ret, Xfun = X_olsc, args = temp$args)
+  # ret$dpp <- bl_lin(ret, Xfun = X_olsc, args = temp$args)
+  ret$dpp <- mboost_intern(ret, Xfun = X_olsc, args = temp$args, fun = "bl_lin")
   return(ret)
 }
 
+
 ### hyper parameters for olsc base-learner
-# add the parameters Z and K
-hyper_olsc <- function(df = NULL, lambda = 0, K = NULL, intercept = TRUE,
-                       contrasts.arg = "contr.treatment", Z = NULL)
-  list(df = df, lambda = lambda, K=K,
-       intercept = intercept, contrasts.arg = contrasts.arg,
-       Z = Z)
+## add the parameter Z and K to the arguments of hyper_ols()
+hyper_olsc <- function(Z = NULL, K = NULL, ...){
+  
+  ## prediction is usually set in/by newX()
+  ret <- c(mboost_intern(..., fun = "hyper_ols"), list(Z = Z, K = K, prediction = FALSE))
+  
+  return(ret)
+}
 
 
 #' @rdname bbsc

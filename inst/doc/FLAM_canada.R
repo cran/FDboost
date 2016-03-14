@@ -120,7 +120,7 @@ mod3 <- FDboost(l10precip ~ bols(region, df=2.5, contrasts.arg = "contr.dummy")
                 + bolsc(place, df=2.5, K=P_nu.5, contrasts.arg = "contr.dummy"), 
                 timeformula=~bbs(month.t, knots=11, cyclic=TRUE, 
                                  df=3, boundary.knots=c(0.5,12.5)),
-                offset=0, offset_control = o_control(k_min=5), 
+                offset="scalar", offset_control = o_control(k_min=5), 
                 data=dataM)
 
 
@@ -244,7 +244,7 @@ for(i in 1:35) {
 plot(0,0,col="white",xaxt="n",yaxt="n",bty="n")
 
 if(require(maps) & require(mapdata)){
-  mapcanada <- map(database="worldHires", regions="can", plot=FALSE)
+  mapcanada <- map(database="world", regions="can", plot=FALSE)
   plot(mapcanada, type="l", xaxt="n", yaxt="n", ylab="", xlab="", bty="n",
      xlim = c(-141,-50), ylim=c(43,74),
      col="grey",

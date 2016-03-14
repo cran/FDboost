@@ -63,7 +63,8 @@ truncateTime <- function(funVar, time, newtime, data){
 #' Plot functional data with linear interpolation of missing values 
 #' 
 #' @param x optional, time-vector for plotting 
-#' @param y matrix of functional data with functions in rows and measured times in columns
+#' @param y matrix of functional data with functions in rows and measured times in columns; 
+#' or vector or functional observations, in this case id has to be specified 
 #' @param id defaults to NULL for y matrix, is id-variables for y in long format
 #' @param rug logical. Should rugs be plotted? Defaults to TRUE.
 #' @param ... further arguments passed to \code{\link[graphics]{matplot}}.
@@ -101,7 +102,8 @@ funplot <- function(x, y, id=NULL, rug=TRUE, ...){
   argsPlot <- getArguments(x=c(formals(graphics::plot.default), par()), dots=dots)
   
   
-  if(is.null(id)){
+  #if( !(is.vector(y) | is.atomic(y)) ){  # is.null(id)
+  if( !is.null(dim(y)) ){ # is.null(id)
     
     # Deal with missing values: interpolate data
     if (missing(x)) {
@@ -223,25 +225,29 @@ plotPredicted <- function(x, subset=NULL, posLegend="topleft", lwdObs=1, lwdPred
   
   stopifnot("FDboost" %in% class(x))
   
-  if(is.null(x$id)){
+  if(!any(class(x)=="FDboostLong")){
     if(is.null(subset)) subset <- 1:x$ydim[1]
     response <- matrix(x$response, nrow=x$ydim[1], ncol=x$ydim[2])[subset, , drop=FALSE] 
     pred <- fitted(x)[subset, , drop=FALSE]
     pred[is.na(response)] <- NA
+    yind <- x$yind
+    id <- NULL
   }else{
     if(is.null(subset)) subset <- unique(x$id)
     response <- x$response[x$id %in% subset] 
     pred <- fitted(x)[x$id %in% subset]
     pred[is.na(response)] <- NA
+    yind <- x$yind[x$id %in% subset] 
+    id <- x$id[x$id %in% subset]
   }
 
   ylim <- range(response, pred, na.rm = TRUE)
   
   if(length(x$yind)>1){
     # Observed values
-    funplot(x$yind, response, id=x$id, pch=1, ylim=ylim, lty=3, 
+    funplot(yind, response, id=id, pch=1, ylim=ylim, lty=3, 
             ylab=x$yname, xlab=attr(x$yind, "nameyind"), lwd=lwdObs, ...)
-    funplot(x$yind, pred, id=x$id, pch=2, lwd=lwdPred, add=TRUE, ...)
+    funplot(yind, pred, id=id, pch=2, lwd=lwdPred, add=TRUE, ...)
     # predicted values
     legend(posLegend, legend=c("observed","predicted"), col=1, pch=1:2)  
   }else{
@@ -261,21 +267,25 @@ plotResiduals <- function(x, subset=NULL, posLegend="topleft", ...){
   
   stopifnot("FDboost" %in% class(x))
   
-  if(is.null(x$id)){
+  if(!any(class(x)=="FDboostLong")){ ## wide format
     if(is.null(subset)) subset <- 1:x$ydim[1]
     response <- matrix(x$response, nrow=x$ydim[1], ncol=x$ydim[2])[subset, , drop=FALSE] 
     pred <- fitted(x)[subset, , drop=FALSE]
     pred[is.na(response)] <- NA
-  }else{
+    yind <- x$yind
+    id <- NULL
+  }else{ ## long format
     if(is.null(subset)) subset <- unique(x$id)
     response <- x$response[x$id %in% subset] 
     pred <- fitted(x)[x$id %in% subset]
     pred[is.na(response)] <- NA
+    yind <- x$yind[x$id %in% subset]
+    id <- x$id[x$id %in% subset] 
   }
   
   # Observed - predicted values
   if(length(x$yind)>1){
-    funplot(x$yind, response-pred, id=x$id, ylab=x$yname, xlab=attr(x$yind, "nameyind"), ...) 
+    funplot(yind, response-pred, id=id, ylab=x$yname, xlab=attr(x$yind, "nameyind"), ...) 
   }else{
     plot(response, response-pred, ylab="residuals", xlab="observed", ...)
     #abline(h=0)
@@ -367,7 +377,7 @@ getYYhatTime <- function(object, breaks=object$yind){
 #' @export
 funRsquared <- function(object, overTime=TRUE, breaks=object$yind, global=FALSE, ...){
   
-  if(length(object$yind)<2 | !is.null(object$id)){
+  if(length(object$yind)<2 | any(class(object)=="FDboostLong")){
     y <- object$response
     yhat <- object$fitted()
     time <- object$yind
@@ -414,7 +424,7 @@ funRsquared <- function(object, overTime=TRUE, breaks=object$yind, global=FALSE,
     attr(ret, "missings") <- apply(y, 2, function(x) sum(is.na(x))/length(x) )
     
   }else{ ### for each subject i
-    if(length(object$yind)<2 | !is.null(object$id)){
+    if(length(object$yind)<2 | any(class(object)=="FDboostLong")){
       # Mean for each subject
       mut <- tapply(y, id, mean, na.rm=TRUE  )[id]
       # numerator cannot be 0
@@ -484,7 +494,7 @@ funRsquared <- function(object, overTime=TRUE, breaks=object$yind, global=FALSE,
 funMSE <- function(object, overTime=TRUE, breaks=object$yind, global=FALSE, 
                    relative=FALSE, root=FALSE, ...){
   
-  if(length(object$yind)<2 | !is.null(object$id)){
+  if(length(object$yind)<2 | any(class(object)=="FDboostLong")){
     y <- object$response
     yhat <- object$fitted()
     time <- object$yind
@@ -514,7 +524,7 @@ funMSE <- function(object, overTime=TRUE, breaks=object$yind, global=FALSE,
       attr(ret, "missings") <- apply(y, 2, function(x) sum(is.na(x))/length(x))     
     }else{ 
       ### for each subject i
-      if(length(object$yind)<2 | !is.null(object$id)){
+      if(length(object$yind)<2 | any(class(object)=="FDboostLong")){
         ret <- tapply((y - yhat)^2, id, mean, na.rm=TRUE  )
         attr(ret, "name") <- "MSE over subjects"              
       }else{
@@ -571,7 +581,7 @@ funMSE <- function(object, overTime=TRUE, breaks=object$yind, global=FALSE,
 #' @export
 funMRD <- function(object, overTime=TRUE, breaks=object$yind, global=FALSE,  ...){
   
-  if(length(object$yind)<2 | !is.null(object$id)){
+  if(length(object$yind)<2 | any(class(object)=="FDboostLong")){
     y <- object$response
     yhat <- object$fitted()
     time <- object$yind
@@ -605,7 +615,7 @@ funMRD <- function(object, overTime=TRUE, breaks=object$yind, global=FALSE,  ...
       attr(ret, "missings") <- apply(y, 2, function(x) sum(is.na(x))/length(x))     
     }else{ 
       ### for each subject i
-      if(length(object$yind)<2 | !is.null(object$id)){
+      if(length(object$yind)<2 | any(class(object)=="FDboostLong")){
         ret <- tapply( abs((y1 - yhat) / y1), id, mean, na.rm=TRUE  )
         attr(ret, "name") <- "MRD over subjects"              
       }else{
@@ -625,20 +635,31 @@ funMRD <- function(object, overTime=TRUE, breaks=object$yind, global=FALSE,  ...
 
 
 ## based on code of function ff() in package refund
-## see Scheipl and Greven: Identifiability in penalized function-on-function regression models 
+## see Scheipl and Greven, 2014: Identifiability in penalized function-on-function regression models 
 # X1 matrix of functional covariate x(s)
 # L matrix of integration weights
 # Bs matrix of spline expansion in s
 # K penalty matrix
 # xname name of functional covariate
-# used type of penalty
-check_ident <- function(X1, L, Bs, K, xname, penalty){
+# penalty the type of the penalty one of "ps" or "pps"
+# cumOverlap should a cumulative overlap be computed, 
+# which is especially suited for a historical effect with triangular coefficient surface?
+# limits the limits function of the historical effect, default to NULL for unconstrained effect
+# yind, id, X1des, ind0, xind pass from X_hist() to compute sequential identifiability measures
+# giveWarnings should warnings be printed
+check_ident <- function(X1, L, Bs, K, xname, penalty, 
+                        cumOverlap=FALSE, 
+                        limits=NULL, yind=NULL, 
+                        t_unique=NULL, 
+                        id=NULL, 
+                        X1des=NULL, ind0=NULL, xind=NULL, 
+                        giveWarnings = TRUE){
   
   ## center X1 per column
   X1 <- scale(X1, scale=FALSE)
   
   #print("check.ident")
-  ## check whether (number of basis functionsin Bs) < (number of relevant eigenfunctions of X1)
+  ## check whether (number of basis functions in Bs) < (number of relevant eigenfunctions of X1)
   evls <- svd(X1, nu=0, nv=0)$d^2 # eigenvalues of centered fun. cov.
   evls[evls<0] <- 0
   maxK <- max(1, min(which((cumsum(evls)/sum(evls)) >= .995)))
@@ -651,34 +672,180 @@ check_ident <- function(X1, L, Bs, K, xname, penalty){
   ## you would have to change args$knots accordingly
   
   ### compute condition number of Ds^t Ds
+  ### <FIXME> possibel to use argument stand here?
   Ds <- (X1 * L) %*% Bs
   DstDs <- crossprod(Ds)
   e_DstDs <- try(eigen(DstDs))
   e_DstDs$values <- pmax(0, e_DstDs$values) # set negative eigenvalues to 0
   logCondDs <- log10(e_DstDs$values[1]) - log10(tail(e_DstDs$values, 1))
-  if(logCondDs > 10^6){
-    warning("condition number for <", xname, "> greater than 10^6.", 
+  if(giveWarnings & logCondDs > 6 & is.null(limits)){
+    warning("condition number for <", xname, "> greater than 10^6. ", 
             "Effect identifiable only through penalty.")
   }
   
-  ## measure degree of overlap between the spans of ker(t(X1)) and W%*%Bs%*%ker(K)
-  ## overlap after Larsson and Villani 2001
-  KeX <- Null(t(X1))  # function Null of package MASS computes kernel
-  if(any(dim(KeX)==0)){ # <FIXME> does it mean t(X1) has no kernel??
-    return(list(logCondDs = logCondDs, overlapKe = 0, 
-                maxK = maxK, penalty = penalty))
-  }  
-  KePen <- diag(L[1,]) %*% Bs %*% Null(K)
-  overlapKe <- trace_lv(svd(KeX, nv=0)$u, svd(KePen, nv=0)$u)
+  ### compute condition number of Ds^t Ds for subsections of Ds accoring to limits
+  logCondDs_hist <- NULL
+
+  # look at condition number of Ds for all values of yind for historical effect
+  # use X1des, as this is the marginal design matrix using the limits
+  if(!is.null(limits)){ 
+    ind0Bs <- ((!ind0)*1) %*% Bs # matrix to check for 0 columns
+    ## implementation is suitable for common grid of t, maybe with some missings
+    ## common grid is assumed if Y(t) is observed at least in 80% for each point 
+    if( all(table(yind)/max(id)>0.8) ){
+      if(is.null(t_unique)) t_unique <- sort(unique(yind))
+      logCondDs_hist <- rep(NA, length=length(t_unique))
+      for(k in 1:length(t_unique)){
+        Ds_t <- X1des[yind==t_unique[k], ] # get rows of Ds corresponding to yind
+        ind0Bs_t <- ind0Bs[yind==t_unique[k], ] # get rows of ind0Bs corresponding to yind
+        # only keep columns that are not completely 0, otherwise matrix is always rank deficient
+        # idea: only this part is used to model y(t) at this point
+        # also delete if not perfectly but almost zero, for all spline bases
+        Ds_t <- Ds_t[ , apply(ind0Bs_t, 2, function(x) !all(abs(x)<10^-1) ), drop = FALSE ]
+        
+        if(dim(Ds_t)[2]!=0){ # for matrix with 0 columns does not make sense
+          DstDs_t <- crossprod(Ds_t)
+          e_DstDs_t <- try(eigen(DstDs_t))
+          e_DstDs_t$values <- pmax(0, e_DstDs_t$values) # set negative eigenvalues to 0
+          logCondDs_t <- log10(e_DstDs_t$values[1]) - log10(tail(e_DstDs_t$values, 1))
+          logCondDs_hist[k] <- logCondDs_t
+        }
+        ## matplot(xind, Bs, type="l", lwd=2, ylim=c(-2,2)); rug(xind); rug(yind, col=2, lwd=2)
+        ## matplot(knots[1:ncol(Ds_t)], t(Ds_t), type="l", lwd=1, add=TRUE)
+        ## lines(t_unique, logCondDs_hist-6, col=2, lwd=4)
+      }
+      names(logCondDs_hist) <- round(t_unique,2)
+      
+      ### implementation for seriously irregular observation points t
+    }else{
+      ## use the mean number of grid points, in the case of irregular t
+      # t_unique <- seq(min(yind), max(yind), length=round(mean(table(id))))
+      ### use quantiles of yind, as only at places with observations effect can be identifiable
+      ### using quantiles prevents Ds_t from beeing completely empty
+      if(is.null(t_unique))  t_unique <- quantile(yind, probs=seq(0,1,length=round(mean(table(id)))) )
+      names(t_unique) <- NULL
+      logCondDs_hist <- rep(NA, length=length(t_unique)-1)
+      for(k in 1:(length(t_unique)-1)){
+        # get rows of Ds corresponding to t_unique[k] <= yind < t_unique[k+1]
+        Ds_t <- X1des[(t_unique[k] <= yind) & (yind < t_unique[k+1]), ] 
+        ind0Bs_t <- ind0Bs[(t_unique[k] <= yind) & (yind < t_unique[k+1]), ]
+        # for the last interval: include upper limit
+        if(k==length(t_unique)-1){
+          Ds_t <- X1des[(t_unique[k] <= yind) & (yind <= t_unique[k+1]), ]
+          ind0Bs_t <- ind0Bs[(t_unique[k] <= yind) & (yind <= t_unique[k+1]), ]
+        } 
+        # only keep columns that are not completely 0, otherwise matrix is always rank deficient
+        # idea: only this part is used to model y(t) at this point
+        # also delete if not perfectly but almost zero, for all spline bases
+        Ds_t <- Ds_t[ , apply(ind0Bs_t, 2, function(x) !all(abs(x)<10^-1) ), drop = FALSE] 
+        
+        if(dim(Ds_t)[2]!=0){ # for matrix with 0 columns does not make sense
+          DstDs_t <- crossprod(Ds_t)
+          e_DstDs_t <- try(eigen(DstDs_t))
+          e_DstDs_t$values <- pmax(0, e_DstDs_t$values) # set negative eigenvalues to 0
+          logCondDs_t <- log10(e_DstDs_t$values[1]) - log10(tail(e_DstDs_t$values, 1))
+          logCondDs_hist[k] <- logCondDs_t
+        }
+      }
+      names(logCondDs_hist) <- round(t_unique[-length(t_unique)],2)
+    }
+    if(giveWarnings & any(logCondDs_hist > 6)){
+      # get the last entry of t, for which the condition number is >10^6
+      temp <- names(which.max(which(logCondDs_hist > 6)))
+      warning("condition number for <", xname, "> considering limits of historical effect ", 
+              "greater than 10^6, for some time-points up to ", temp, ". ",
+              "Effect in this region identifiable only through penalty.")
+    }
+  } ## end of computation of logCondDs_hist for historical effects
+
   
-  if(overlapKe >= 1){
+  ## measure degree of overlap between the spans of ker(t(X1)) and W%*%Bs%*%ker(K)
+  ## overlap after Larsson and Villani 2001, Scheipl and Greven, 2014
+  
+  tryNA <- function(expr){
+    ret <- try(expr, silent = TRUE)
+    if(any(class(ret)=="try-error")) return(NA)
+    return(ret)
+  }
+  tryNull <- function(expr){
+    ret <- try(expr, silent = TRUE)
+    if(any(class(ret)=="try-error")) return(matrix(NA, 0, 0))
+    return(ret)
+  }
+  
+  ### get special measures for kernel overlap of WB_s(P_s) with subset of Xobs
+  ### overlap measure of Larsson and Villani 2001
+  ### as proposed by Scheipl and Greven 2015
+  getOverlap <- function(subset, X1, L, Bs, K){
+    # <FIXME> case that all observations are 0, kernel is everything -> kernel overlap
+    if(all(X1[ , subset]==0)){
+      return(5)
+    }
+    KeXsub <- tryNull(Null(t(X1[ , subset])))
+    if(ncol(KeXsub)==0){ # no null space
+      return(0)
+    }
+    KePen2sub <- tryNull(diag(L[1,subset]) %*% Bs[subset,] %*% Null(K))
+    overlapSub <- tryNA(trace_lv(svd(KeXsub)$u, svd(KePen2sub)$u))
+    return(overlapSub)
+  }
+  
+  cumOverlapKe <- NULL
+  overlapKe <- NULL
+  overlapKeComplete <- NULL
+  
+  #   ## cumulative overlap for historical model in the special case of s<t
+  #   if(cumOverlap){   
+  #     restm <- ncol(X1) %% 10 # rest of modulo calculation 
+  #     ntemp <- (ncol(X1)-restm)/10 # group-size without rest
+  #     ## subset with 1/10, 2/10, ..., 10/10 of the observation points
+  #     if(restm > ntemp){ # case that rest is bigger than group size
+  #       subs <- c(list(1:restm), lapply(1:8, function(i) 1:(restm+i*ntemp)), list(1:ncol(X1)))
+  #     }else{
+  #       subs <- c(lapply(1:9, function(i) 1:(restm+i*ntemp)), list(1:ncol(X1)))
+  #     }
+  #     cumOverlapKe <- sapply(subs, getOverlap, X1=X1, L=L, Bs=Bs, K=K)
+  #     overlapKe <- max(cumOverlapKe, na.rm = TRUE) #cumOverlapKe[[length(cumOverlapKe)]]
+  #     
+  #   }else{ # overlap between whole matrix X and penalty
+  #     overlapKe <- getOverlap(subset=1:ncol(X1), X1=X1, L=L, Bs=Bs, K=K)
+  #   } 
+  #   print("overlapKe")
+  #   print(overlapKe)
+  #   plot( seq(min(t_unique), max(t_unique), l=10), cumOverlapKe, ylim=c(0,1))
+  
+  
+  ## sequential overlap for historical model with general integraion limits
+  if(!is.null(limits)){  
+
+    subs <- list()
+    for(k in 1:length(t_unique)){
+      subs[[k]] <- which(limits(s=xind, t=t_unique[k]))
+    }
+    cumOverlapKe <- sapply(subs, getOverlap, X1=X1, L=L, Bs=Bs, K=K)
+    overlapKe <- max(cumOverlapKe, na.rm = TRUE) #cumOverlapKe[[length(cumOverlapKe)]]
+    
+  }else{ # overlap between whole matrix X and penalty
+    overlapKe <- getOverlap(subset=1:ncol(X1), X1=X1, L=L, Bs=Bs, K=K)
+  }
+  # print("overlapKe general limits")
+  # print(overlapKe)
+  # points(t_unique, cumOverlapKe, col=2)
+  
+  # look at overlap with whole functional covariate 
+  overlapKeComplete  <- getOverlap(subset=1:ncol(X1), X1=X1, L=L, Bs=Bs, K=K)
+  
+  if(giveWarnings & overlapKe >= 1){
     warning("Kernel overlap for <", xname, "> and the specified basis and penalty detected. ",
             "Changing basis for X-direction to <penalty='pss'> to make model identifiable through penalty. ", 
             "Coefficient surface estimate will be inherently unreliable.") 
     penalty <- "pss"
   }
   
-  return(list(logCondDs=logCondDs, overlapKe=overlapKe, maxK=maxK, penalty=penalty))
+  return(list(logCondDs=logCondDs, logCondDs_hist=logCondDs_hist,  
+              overlapKe=overlapKe, cumOverlapKe=cumOverlapKe, 
+              overlapKeComplete=overlapKeComplete, 
+              maxK=maxK, penalty=penalty))
 }
 
 
@@ -708,7 +875,10 @@ trace_lv <- function(A, B, tol=1e-10){
 
 
 ## use a penalty matrix with full rank, so-called "shrinkage approach" 
-## after Marra and Wood 2011  
+## after Marra and Wood (2011) Practical variable selection for generalized additive models. 
+## code taken from smooth.construct.pss.smooth.spec() in package refund (written by Fabian Scheipl)
+## which is based on mgcv of Simon Wood, e.g. smooth.construct.tp.smooth.spec() 
+## function with the following arguments 
 # K sqaured differences penalty matrix
 # difference degree of difference
 # shrink shrinkage parameter 
