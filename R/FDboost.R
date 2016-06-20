@@ -20,7 +20,7 @@
 #' 
 #' @param formula a symbolic description of the model to be fit. 
 #' Per default no intercept is added, only a smooth offset, see argument \code{offset}. 
-#' To add a smooth intercept, use 1, e.g. \code{y ~ 1} for a pure intercept model. 
+#' To add a smooth intercept, use 1, e.g., \code{y ~ 1} for a pure intercept model. 
 #' @param timeformula one-sided formula for the specification of the effect over the index of the response. 
 #' For functional response \eqn{Y_i(t)} typically use \code{~ bbs(t)} to obtain smooth 
 #' effects over \eqn{t}. 
@@ -58,7 +58,7 @@
 #' including, \code{family} and \code{control}.
 #' 
 #' @details In matrix representation of functional response and covariates each row 
-#' represents one functional observation, e.g. \code{Y[i,t_g]} corresponds to \eqn{Y_i(t_g)}, 
+#' represents one functional observation, e.g., \code{Y[i,t_g]} corresponds to \eqn{Y_i(t_g)}, 
 #' giving a <number of curves> by <number of evaluations> matrix. 
 #' For the model fit, the matrix of the functional
 #' response evaluations \eqn{Y_i(t_g)} are stacked internally into one long vector. 
@@ -73,12 +73,12 @@
 #' in the function \code{\%O\%}, see \code{\link[mboost]{\%O\%}}. 
 #' 
 #' When \code{\%O\%} is called with a specification of \code{df} in both base-learners, 
-#' e.g. \code{bbs(x1, df = df1) \%O\% bbs(t, df = df2)}, the global \code{df} for the 
+#' e.g., \code{bbs(x1, df = df1) \%O\% bbs(t, df = df2)}, the global \code{df} for the 
 #' Kroneckered base-learner is computed as \code{df = df1 * df2}. 
 #' And thus the penalty has only one smoothness parameter lambda resulting in an isotropic penalty. 
 #' A Kronecker product with anisotropic penalty is \code{\%A\%}, allowing for different 
 #' amount of smoothness in the two directions, see \code{\link{\%A\%}}. 
-#' If the formula contains base-learners connected by \code{\%O\%} or \code{\%A\%}, 
+#' If the formula contains base-learners connected by \code{\%O\%}, \code{\%A\%} or \code{\%A0\%}, 
 #' those effects are not expanded with \code{timeformula}, allowing for model specifications 
 #' with different effects in time-direction.   
 #' 
@@ -97,7 +97,7 @@
 #' Alternatively, the scalar response is fitted as scalar response, like in the function
 #' \code{\link[mboost]{mboost}} in package mboost. 
 #' The advantage of using \code{FDboost} in that case 
-#' is that methods for the functional base-learners are available, e.g. \code{plot}. 
+#' is that methods for the functional base-learners are available, e.g., \code{plot}. 
 #' 
 #' The desired regression type is specified by the \code{family}-argument, 
 #' see the help-page of \code{\link[mboost]{mboost}}. For example a mean regression model is obtained by  
@@ -112,52 +112,54 @@
 #' \itemize{
 #' \item Linear functional effect of scalar (numeric or factor) covariate \eqn{z} that varies 
 #'   smoothly over \eqn{t}, i.e. \eqn{z_i \beta(t)}, specified as
-#'   \code{~ bolsc(z)}, see \code{\link{bolsc}}, 
-#'   or for a group effect with mean zero use \code{~ brandomc(z)}.  
+#'   \code{bolsc(z)}, see \code{\link{bolsc}}, 
+#'   or for a group effect with mean zero use \code{brandomc(z)}.  
 #' \item Nonlinear effects  of a scalar covariate that vary smoothly over \eqn{t}, 
 #'   i.e. \eqn{f(z_i, t)}, specified as \code{bbsc(z)}, 
 #'   see \code{\link{bbsc}}. 
 #' \item (Nonlinear) effects of scalar covariates that are constant 
-#'   over \eqn{t}, e.g. \eqn{f(z_i)}, specified as \code{~ c(bbs(z))}, 
-#'   or \eqn{\beta z_i}, specified as \code{~ c(bols(z))}.
-#' \item Interaction terms between two scalar covariates, e.g. \eqn{z_i1 zi2 \beta(t)}, 
-#'   are specified as \code{bolsc(z1) \%Xc\% bolsc(z2)} and  
-#'   an interaction \eqn{z_i1 f(zi2, t)} as \code{bolsc(z1) \%Xc\% bbsc(z2)}, as 
+#'   over \eqn{t}, e.g., \eqn{f(z_i)}, specified as \code{c(bbs(z))}, 
+#'   or \eqn{\beta z_i}, specified as \code{c(bols(z))}.
+#' \item Interaction terms between two scalar covariates, e.g., \eqn{z_i1 zi2 \beta(t)}, 
+#'   are specified as \code{bols(z1) \%Xc\% bols(z2)} and  
+#'   an interaction \eqn{z_i1 f(zi2, t)} as \code{bols(z1) \%Xc\% bbs(z2)}, as 
 #'   \code{\%Xc\%} applies the sum-to-zero constraint to the desgin matrix of the tensor product 
-#'   built by \code{\%Xc\%}, see  \code{\link{\%Xc\%}}, EXPERIMENTAL!
+#'   built by \code{\%Xc\%}, see \code{\link{\%Xc\%}}, EXPERIMENTAL!
 #' \item Function-on-function regression terms of functional covariates \code{x}, 
-#'   e.g. \eqn{\int x_i(s)\beta(s,t)ds}, specified as \code{~ bsignal(x, s = s)}, 
+#'   e.g., \eqn{\int x_i(s)\beta(s,t)ds}, specified as \code{bsignal(x, s = s)}, 
 #'   using P-splines, see \code{\link{bsignal}}. 
 #'   Terms given by \code{\link{bfpc}} provide FPC-based effects of functional 
 #'   covariates, see \code{\link{bfpc}}. 
 #' \item Function-on-function regression terms of functional covariates \code{x} 
 #'   with integration limits \eqn{[l(t), u(t)]} depending on \eqn{t},  
-#'   e.g. \eqn{\int_[l(t), u(t)] x_i(s)\beta(s,t)ds}, specified as 
-#'   \code{~ bhist(x, s = s, time = t, limits)}. The \code{limits} argument defaults to
-#'   \code{"s<=t"} which yields a hisotircal effect with limits \eqn{[min(t),t]}, 
+#'   e.g., \eqn{\int_[l(t), u(t)] x_i(s)\beta(s,t)ds}, specified as 
+#'   \code{bhist(x, s = s, time = t, limits)}. The \code{limits} argument defaults to
+#'   \code{"s<=t"} which yields a historical effect with limits \eqn{[min(t),t]}, 
 #'    see \code{\link{bhist}}.
 #' \item Concurrent effects of functional covariates \code{x}
 #'   measured on the same grid as the response, i.e., \eqn{x_i(s)\beta(t)}, 
-#'   are specified as \code{~ bconcurrent(x, s = s, time = t)}, 
+#'   are specified as \code{bconcurrent(x, s = s, time = t)}, 
 #'   see \code{\link{bconcurrent}}. 
 #' \item Interaction effects can be estimated as tensor product smooth, e.g., 
-#'   \eqn{ z \int x_i(s)\beta(s,t)ds} as \code{~ bsignal(x, s = s) \%X\% bolsc(z)}
+#'   \eqn{ z \int x_i(s)\beta(s,t)ds} as \code{bsignal(x, s = s) \%X\% bolsc(z)}
 #' \item For interaction effects with historical functional effects, e.g., 
 #'   \eqn{ z_i \int_[l(t),u(t)] x_i(s)\beta(s,t)ds} the base-learner 
 #'   \code{bhistx} should be used instead of \code{bhist}, 
-#'   e.g. \code{~ bhistx(x, limits) \%X\% bolsc(z)}, see \code{\link{bhistx}}.
+#'   e.g., \code{bhistx(x, limits) \%X\% bolsc(z)}, see \code{\link{bhistx}}.
 #' \item Generally, the \code{c()}-notation can be used to get effects that are 
 #'   constant over the index of the functional response. 
 #' \item If the \code{formula} in \code{FDboost} contains base-learners connected by 
-#' \code{\%O\%} or \code{\%A\%}, those effects are not expanded with \code{timeformula}, 
+#' \code{\%O\%}, \code{\%A\%} or \code{\%A0\%}, those effects are not expanded with \code{timeformula}, 
 #' allowing for model specifications with different effects in time-direction.  
 #' } 
 #'  
-#' In order to obtain a fair selection of base-learners, the same  degrees of freedom (df) 
-#' should be specified for all baselearners. It is recommended to use 
+#' In order to obtain a fair selection of base-learners, the same degrees of freedom (df) 
+#' should be specified for all baselearners. If the number of df differs among the base-learners, 
+#' the selection is biased towards more flexible base-learners with higher df as they are more 
+#' likely to yield larger improvements of the fit. It is recommended to use 
 #' a rather small number of df for all base-learners. 
 #' It is not possible to specify df larger than the rank of the design matrix.
-#' For base-learners with rank-deficient penalty it is not possible to specify df smaller than the 
+#' For base-learners with rank-deficient penalty, it is not possible to specify df smaller than the 
 #' rank of the null space of the penalty (e.g., in \code{bbs} unpenalized part of P-splines). 
 #' The df of the base-learners in an FDboost-object can be checked using \code{extract(object, "df")}, 
 #' see \code{\link[mboost]{extract}}.  
@@ -165,7 +167,7 @@
 #' The most important tuning parameter of component-wise gradient boosting 
 #' is the number of boosting iterations. It is recommended to use the number of 
 #' boosting iterations as only tuning parameter, 
-#' fixing the step-length at a small value (e.g. nu = 0.1). 
+#' fixing the step-length at a small value (e.g., nu = 0.1). 
 #' Note that the default number of boosting iterations is 100 which is arbitrary and in most 
 #' cases not adequate (the optimal number of boosting iterations can considerably exceed 100). 
 #' The optimal stopping iteration can be determined by resampling methods like
@@ -193,6 +195,7 @@
 #' \item{offsetMboost}{offset as given to mboost}
 #' \item{call}{the call to \code{FDboost}}
 #' \item{callEval}{the evaluated function call to \code{FDboost} without data}
+#' \item{numInt}{value of argument \code{numInt} determining the numerical integration scheme}
 #' \item{timeformula}{the time-formula}
 #' \item{formulaFDboost}{the formula with which \code{FDboost} was called}
 #' \item{formulaMboost}{the formula with which \code{mboost} was called within \code{FDboost}}
@@ -211,7 +214,7 @@
 #' 
 #' Brockhaus, S., Melcher, M., Leisch, F. and Greven, S. (2016): 
 #' Boosting flexible functional regression models with a high number of functional historical effects,  
-#' under revision.  
+#' Statistics and Computing, accepted.  
 #' 
 #' Currie, I.D., Durban, M. and Eilers P.H.C. (2006):  
 #' Generalized linear array models with applications to multidimensional smoothing. 
@@ -243,8 +246,19 @@
 #'                data = viscosity, control=boost_control(mstop = 100, nu = 0.4))
 #' 
 #' \dontrun{
-#'   ## find optimal mstop over 5-fold bootstrap, small number of folds for example
-#'   ## do the resampling on the level of curves
+#'   #### find optimal mstop over 5-fold bootstrap, small number of folds for example
+#'   #### do the resampling on the level of curves
+#'   
+#'   ## possibility 1: smooth offset and transformation matrices are refitted 
+#'   set.seed(123)
+#'   appl1 <- applyFolds(mod1, folds = cv(rep(1, length(unique(mod1$id))), B = 5), 
+#'                       grid = 1:500)
+#'   ## plot(appl1)
+#'   mstop(appl1)
+#'   mod1[mstop(appl1)]
+#'   
+#'   ## possibility 2: smooth offset is refitted, 
+#'   ## computes oob-risk and the estimated coefficients on the folds
 #'   set.seed(123)
 #'   val1 <- validateFDboost(mod1, folds = cv(rep(1, length(unique(mod1$id))), B = 5), 
 #'                         grid = 1:500)
@@ -252,7 +266,7 @@
 #'   mstop(val1)
 #'   mod1[mstop(val1)]
 #' 
-#'   ## find the optimal mstop over 5-fold bootstrap
+#'   ## possibility 3: very efficient 
 #'   ## using the function cvrisk; be careful to do the resampling on the level of curves
 #'   folds1 <- cvLong(id = mod1$id, weights = model.weights(mod1), B = 5)
 #'   cvm1 <- cvrisk(mod1, folds = folds1, grid = 1:500)
@@ -291,16 +305,15 @@
 #' mod2 <- FDboost(heatan ~ bsignal(UVVIS, uvvis.lambda, knots = 40, df = 4, check.ident = FALSE) 
 #'                + bsignal(NIR, nir.lambda, knots = 40, df = 4, check.ident = FALSE), 
 #'                timeformula = NULL, data = fuelSubset, control = boost_control(mstop = 200)) 
-#'     
-#' ## bootstrap to find optimal mstop takes some time
-#' ## set.seed(123)      
-#' ## folds2 <- cv(weights = model.weights(mod2), B = 10)     
-#' ## cvm2 <- cvrisk(mod2, folds = folds2, grid = 1:1000)
-#' ## mstop(cvm2)
-#' mod2[327]
-#'                
-#' summary(mod2) 
-#' ## plot(mod2)
+#' \dontrun{   
+#'   ## bootstrap to find optimal mstop takes some time
+#'   set.seed(123)      
+#'   folds2 <- cv(weights = model.weights(mod2), B = 10)     
+#'   cvm2 <- cvrisk(mod2, folds = folds2, grid = 1:1000)
+#'   mstop(cvm2) ## mod2[327]
+#'   summary(mod2) 
+#'   ## plot(mod2)
+#' }
 #' 
 #' ## Example for function-on-function-regression 
 #' if(require(fda)){
@@ -313,6 +326,7 @@
 #'   
 #'   ## center the temperature curves per time-point
 #'   CanadianWeather$temp <- scale(CanadianWeather$temp, scale = FALSE)
+#'   rownames(CanadianWeather$temp) <- NULL ## delete row-names
 #'   
 #'   ## fit model with cyclic splines over the year
 #'   mod3 <- FDboost(l10precip ~ bols(region, df = 2.5, contrasts.arg = "contr.dummy") 
@@ -321,17 +335,24 @@
 #'                    timeformula = ~ bbs(month.t, knots = 11, cyclic = TRUE, 
 #'                                   df = 3, boundary.knots = c(0.5, 12.5)), 
 #'                    offset = "scalar", offset_control = o_control(k_min = 5), 
-#'                   data = CanadianWeather)  
-#'  ## find the optimal mstop over 5-fold bootstrap 
-#'  ## using the function cvrisk; be careful to do the resampling on the level of curves
-#'  ## set.seed(123)
-#'  ## folds3 <- cvLong(id = mod3$id, weights = model.weights(mod3), B = 5)
-#'  ## cvm3 <- cvrisk(mod3, folds = folds3, grid = 1:500)
-#'  ## mstop(cvm3)
-#'  mod3[64]
+#'                   data = CanadianWeather) 
+#'  
+#'  \dontrun{                  
+#'    #### find the optimal mstop over 5-fold bootstrap 
+#'    ## using the function applyFolds 
+#'    set.seed(123)
+#'    folds3 <- cv(rep(1, length(unique(mod3$id))), B = 5)
+#'    appl3 <- applyFolds(mod3, folds = folds3)
+#'  
+#'    ## use function cvrisk; be careful to do the resampling on the level of curves
+#'    set.seed(123)
+#'    folds3long <- cvLong(id = mod3$id, weights = model.weights(mod3), B = 5)
+#'    cvm3 <- cvrisk(mod3, folds = folds3long, grid = 1:500)
+#'    mstop(cvm3) ## mod3[64]
 #'    
-#'  summary(mod3)
-#'  ## plot(mod3, pers = TRUE)
+#'    summary(mod3)
+#'    ## plot(mod3, pers = TRUE)
+#'  }
 #' }
 #' 
 #' ######## Example for functional response observed on irregular grid
@@ -346,7 +367,7 @@
 #' viscosity$time <- viscosity$timeAll[1:end]
 #' # with(viscosity, funplot(time, vis, pch = 16, cex = 0.2))
 #' 
-#' ## only keep a quarter of the observation points
+#' ## only keep one eighth of the observation points
 #' set.seed(123)
 #' selectObs <- sort(sample(x = 1:(64*46), size = 64*46/4, replace = FALSE))
 #' dataIrregular <- with(viscosity, list(vis = c(vis)[selectObs], 
@@ -354,26 +375,32 @@
 #'                                       time = rep(time, each = 64)[selectObs], 
 #'                                       id = rep(1:64, 46)[selectObs]))
 #' 
-#' ## fit median regression model with 100 boosting iterations,
+#' ## fit median regression model with 50 boosting iterations,
 #' ## step-length 0.4 and smooth time-specific offset
 #' ## the factors are in effect coding -1, 1 for the levels
 #' ## no integration weights are used!
 #' mod4 <- FDboost(vis ~ 1 + bols(T_C, contrasts.arg = "contr.sum", intercept = FALSE)
 #'                 + bols(T_A, contrasts.arg = "contr.sum", intercept=FALSE),
 #'                 timeformula = ~ bbs(time, lambda = 100), id = ~id, 
-#'                 numInt = "equal", family = QuantReg(),
+#'                 numInt = "Riemann", family = QuantReg(),
 #'                 offset = NULL, offset_control = o_control(k_min = 9),
-#'                 data = dataIrregular, control = boost_control(mstop = 100, nu = 0.4))
+#'                 data = dataIrregular, control = boost_control(mstop = 50, nu = 0.4))
 #' summary(mod4)
 #' ## plot(mod4)
 #' ## plotPredicted(mod4, lwdPred = 2)
 #' 
-#' ## Find optimal mstop, small grid/low B for a fast example
-#' folds4 <- cvLong(id = mod4$id, weights = model.weights(mod4), B = 3)
-#' cvm4 <- cvrisk(mod4, folds = folds4, grid = 1:50)
-#' mstop(cvm4)
-#' ## val4 <- validateFDboost(mod4, folds = cv(rep(1, length(unique(mod4$id))), B = 3), 
-#' ##                         grid = 1:50)
+#' \dontrun{
+#'   ## Find optimal mstop, small grid/low B for a fast example
+#'   set.seed(123)
+#'   folds4 <- cv(rep(1, length(unique(mod4$id))), B = 3)
+#'   appl4 <- applyFolds(mod4, folds = folds4, grid = 1:50)
+#'   ## val4 <- validateFDboost(mod4, folds = folds4, grid = 1:50)
+#' 
+#'   set.seed(123)
+#'   folds4long <- cvLong(id = mod4$id, weights = model.weights(mod4), B = 3)
+#'   cvm4 <- cvrisk(mod4, folds = folds4long, grid = 1:50)
+#'   mstop(cvm4)
+#' }
 #' 
 #' ## Be careful if you want to predict newdata with irregular response,  
 #' ## as the argument index is not considered in the prediction of newdata. 
@@ -387,7 +414,7 @@
 #'                         labels = c("low", "high"))[rep(1:4, length(viscosity$time))], 
 #'              time = rep(viscosity$time, 4))
 #'              
-#' ## pred <- predict(mod4, newdata = newd)
+#' pred <- predict(mod4, newdata = newd)
 #' ## funplot(x = rep(viscosity$time, 4), y = pred, id = rep(1:4, length(viscosity$time)))
 #'                   
 #'                 
@@ -398,6 +425,7 @@
 #' @importFrom utils getS3method 
 #' @importFrom stats approx as.formula coef complete.cases fitted formula lm median model.matrix model.weights na.omit predict quantile sd terms.formula variable.names 
 #' @importFrom gamboostLSS GaussianLSS GaussianMu GaussianSigma make.grid cvrisk.mboostLSS
+#' @importFrom stabs stabsel stabsel_parameters 
 #' @importFrom splines bs splineDesign
 #' @importFrom mgcv gam s
 #' @importFrom zoo na.locf
@@ -417,16 +445,40 @@ FDboost <- function(formula,          ### response ~ xvars
                     ...)              ### goes directly to mboost
 {
   dots <- list(...)
+  
+  ### save formula of FDboost before it is changed
+  formulaFDboost <- formula
+  
+  tf <- terms.formula(formula, specials = c("c"))
+  trmstrings <- attr(tf, "term.labels")
+  equalBrackets <- NULL
+  if(length(trmstrings) > 0){
+    ## insert id at end of each base-learner
+    trmstrings2 <- paste(substr(trmstrings, 1 , nchar(trmstrings)-1), ", index=", id[2],")", sep = "")
+    ## check if number of opening brackets is equal to number of closing brackets
+    equalBrackets <- sapply(1:length(trmstrings2), function(i)
+    {
+      sapply(regmatches(trmstrings2[i], gregexpr("\\(", trmstrings2[i])), length) ==
+        sapply(regmatches(trmstrings2[i], gregexpr("\\)", trmstrings2[i])), length)
+    })
+  }
 
   ## insert the id variable into the formula, to treat it like the other variables
   if(!is.null(id)){
     stopifnot(class(id) == "formula")
-    tf <- terms.formula(formula, specials = c("c"))
-    trmstrings <- attr(tf, "term.labels")
+    ##tf <- terms.formula(formula, specials = c("c"))
+    ##trmstrings <- attr(tf, "term.labels")
+    ##equalBrackets <- NULL
     if(length(trmstrings) > 0){
-      ## insert id at end of each base-learner
-      trmstrings2 <- paste(substr(trmstrings, 1 , nchar(trmstrings)-1), ", index=", id[2],")", sep = "")
-      ## insert into the other base-learners of the tensor-product as well
+      #### insert index at end of each base-learner
+      ##trmstrings2 <- paste(substr(trmstrings, 1 , nchar(trmstrings)-1), ", index=", id[2],")", sep = "")
+      #### check if number of opening brackets is equal to number of closing brackets
+      ##equalBrackets <- sapply(1:length(trmstrings2), function(i)
+      ##  {
+      ##  sapply(regmatches(trmstrings2[i], gregexpr("\\(", trmstrings2[i])), length) ==
+      ##    sapply(regmatches(trmstrings2[i], gregexpr("\\)", trmstrings2[i])), length)
+      ##})
+      ## insert index into the other base-learners of the tensor-product as well
       for(i in 1:length(trmstrings)){
         if(grepl( "%X", trmstrings2[i])){
           temp <- unlist(strsplit(trmstrings2[i], "%X"))
@@ -440,9 +492,19 @@ FDboost <- function(formula,          ### response ~ xvars
         } 
         ## do not add index to base-learners bhistx()
         if( grepl("bhistx", trmstrings[i]) ) trmstrings2[i] <- trmstrings[i] 
+        ##  do not add an index if an index is already part of the formula
+        if( grepl("index[[:blank:]]*=", trmstrings[i]) ) trmstrings2[i] <- trmstrings[i]
+        ##  do not add an index if an index for %A%, %A0%, %O%
+        if( grepl("%A%", trmstrings[i]) ) trmstrings2[i] <- trmstrings[i]
+        if( grepl("%A0%", trmstrings[i]) ) trmstrings2[i] <- trmstrings[i]
+        if( grepl("%O%", trmstrings[i]) ) trmstrings2[i] <- trmstrings[i]
+        # ##  do not add an index for base-learner that do not have brackets
+        # if( !grepl("\\(", trmstrings[i]) ){ 
+        #   trmstrings2[i] <- trmstrings[i]
+        #   trmWoBracket <- c(trmWoBracket, i)
+        # }
+        if( i %in% which(!equalBrackets) ) trmstrings2[i] <- trmstrings[i]
       }
-      ### <FIXME> do not add an index if an index is already part of the formula
-      #trmstrings2[grepl("index", trmstrings)] <- trmstrings[grepl("index", trmstrings)]
       trmstrings <- trmstrings2
     } 
     xpart <- paste(as.vector(trmstrings), collapse = " + ")
@@ -458,10 +520,7 @@ FDboost <- function(formula,          ### response ~ xvars
   }else{
     nameid <- NULL
   }
-  
-  ### save formula of FDboost
-  formulaFDboost <- formula
-  
+
   stopifnot(class(formula) == "formula")
   if(!is.null(timeformula)) stopifnot(class(timeformula) == "formula")
   
@@ -473,6 +532,7 @@ FDboost <- function(formula,          ### response ~ xvars
   ### for scalar response ~bols(1) or NULL
   scalarResponse <- FALSE
   scalarNoFLAM <- FALSE
+  response_factor <- NULL
   if(is.null(timeformula) || timeformula == ~bols(1)){
     
     scalarResponse <- TRUE
@@ -488,6 +548,9 @@ FDboost <- function(formula,          ### response ~ xvars
     ## timeformula <- ~bols(ONEtime, lambda = 0)
     
     data$ONEtime <- 1
+    ## matrix() converts factors to characters
+    ## thus, save the original factor variable if the response is a factor
+    if(is.factor(response)) response_factor <- response
     response <- matrix(response, ncol = 1)
   }
   
@@ -539,12 +602,14 @@ FDboost <- function(formula,          ### response ~ xvars
   if(length(allCovs) > 1){
     data <- data[allCovs[!allCovs %in% c(yname, nameyind)] ]
     if( any(is.na(names(data))) ) data <- data[ !is.na(names(data)) ]
-  }else data <- list(NULL)  # <SB> intercept-model without covariates
+  }else{
+    data <- list(NULL)  # <SB> intercept-model without covariates
+  } 
         
   ### get covariates that are modeled constant over time
   # code of function pffr() of package refund
-  tf <- terms.formula(formula, specials = c("c"))
-  trmstrings <- attr(tf, "term.labels")
+  ##tf <- terms.formula(formula, specials = c("c"))
+  ##trmstrings <- attr(tf, "term.labels")
   terms <- sapply(trmstrings, function(trm) as.call(parse(text = trm))[[1]], simplify = FALSE) 
   #ugly, but getTerms(formula)[-1] does not work for terms like I(x1:x2) 
   frmlenv <- environment(formula)
@@ -569,11 +634,15 @@ FDboost <- function(formula,          ### response ~ xvars
     stopifnot(ncol(response) == length(time))
     nc <- ncol(response)
     dresponse <- as.vector(response) # column-wise stacking of response 
+    ## convert characters to factor 
+    if(is.character(dresponse)) dresponse <- factor(dresponse) 
+    ## in case of a scalar factor response, use the original factor as response 
+    if(!is.null(response_factor)) dresponse <- response_factor
     nobs <- nr # number of observed trajectories
     ## check wether time variable is used in other base-learners
     ## only check in regular response case, as for irregular response, the problem cannot occur
     #if(nameyind %in% allCovs){
-    #  warning("Do not use the same variable t as time-variable in y(t) and in the base-learners, e.g. as x(t).")
+    #  warning("Do not use the same variable t as time-variable in y(t) and in the base-learners, e.g., as x(t).")
     #}
   }else{
     stopifnot(is.null(dim(response))) ## stopifnot(is.vector(response))
@@ -600,50 +669,50 @@ FDboost <- function(formula,          ### response ~ xvars
   #   grep("bbsc", trmstrings) + grep("brandomc", trmstrings)
   
   
-  ### compose mboost formula
+  ##### compose mboost formula
 
   ## get formula over time
   tfm <- paste(deparse(timeformula), collapse = "")
   tfm <- strsplit(tfm, "~")[[1]]
   tfm <- strsplit(tfm[2], "\\+")[[1]]
   
+  ## get formula in covariates 
   cfm <- paste(deparse(formula), collapse = "") 
   cfm <- strsplit(cfm, "~")[[1]]
+  cfm0 <- cfm
   #xfm <- strsplit(cfm[2], "\\+")[[1]]
   xfm <- trmstrings
-  ### replace "1" with intercept base learner
-  if ( any( gsub(" ", "", strsplit(cfm[2], "\\+")[[1]]) ==  "1")){
-    ## if(length(time) == 1) warning("Smooth intercept may not be sensitive for scalar response.")
-    if( grepl("lambda", deparse(timeformula)) || 
-         ( grepl("bols", deparse(timeformula)) &  !grepl("df", deparse(timeformula))) ){
-      xfm <- c("bols(ONEx, intercept = FALSE, lambda = 0)", xfm)
-    } else{
-      xfm <- c("bols(ONEx, intercept = FALSE, df = 1)", xfm)
-    }
-    
-    ## for FLAM model with %O% use anisotropic Kronecker product for not penalizing in direction of ONEx
-    ## use %A0%, as smooth intercept has smooting parameter 0 in 1-direction 
-    if(is.null(id)){
-      xfm[[1]] <- paste(xfm[[1]], "%A0%", tfm)
-    }
-    
-    where.c <- where.c + 1
-  }
   
   ## check that the timevariable in timeformula and in the bhistx-base-learners have the same name
   if(any(grepl("bhistx", trmstrings))){
     for(j in 1:length(trmstrings)){
       if(any(grepl("bhistx", trmstrings[j]))){
-        temp_name <- all.vars(formula(paste("~", trmstrings[[j]])[1]))[1]
+        if(grepl("%X", trmstrings[j]) ){
+          temp <- strsplit(trmstrings[[j]], "%X.*%")[[1]]
+          temp <- temp[ grepl("bhistx", temp) ]
+          ## pryr::standardise_call(quote(bhistx(X1h, df=3))) 
+          temp_name <- all.vars(formula(paste("~", temp)))[1]
+        }else{
+          temp_name <- all.vars(formula(paste("~", trmstrings[[j]])[1]))[1]
+        }
         if(getTimeLab(data[[temp_name]]) != nameyind){
           stop("The timeLab of the hmatrix-object in bhistx(), '", getTimeLab(data[[temp_name]]),
                "', must be euqal to the name of the time-variable in timeformula, '", nameyind, "'.")
+        }
+        #if(!is.null(nameid) && any( abs(getId(data[[temp_name]]) - id) > .Machine$double.eps*10^10) ){
+        #  stop("The id-variable of the hmatrix-object in bhistx() must match the id-variable.")
+        #}
+        timeLong <- time
+        ## for response matrix: expand time accordingly 
+        if(!is.null(ydim)) timeLong <- rep(time, each = ydim[1] )
+        if( any( abs(getTime(data[[temp_name]]) - timeLong) > .Machine$double.eps*10^10) ){
+          stop("The time of the hmatrix-object in bhistx() must match the time-variable in timeformula.")
         }
       }
     }
   }
     
-  yfm <- strsplit(cfm[1], "\\+")[[1]]
+  yfm <- strsplit(cfm[1], "\\+")[[1]] ## name of response 
   
   ## set up formula for effects constant in time
   if(length(where.c) > 0){
@@ -663,9 +732,18 @@ FDboost <- function(formula,          ### response ~ xvars
   if(is.null(id)){
     tmp <- outer(xfm, tfm, function(x, y) paste(x, y, sep = "%O%"))
   }else{
-    # expand the bl according to id
-    if(grepl("ONEx", xfm[[1]])) xfm[[1]] <- paste(substr(xfm[[1]], 1 , nchar(xfm[[1]])-1), ", index=", nameid, ")", sep = "")
-    xfm <- paste(substr(xfm, 1 , nchar(xfm)-1), ")", sep = "") # , index=id is done in the beginning
+    ## expand the bl according to id
+    # do not expand for terms without brackets, which is equal to having an unequal number of brackets
+    # in the generation part of trmstrings
+    if(is.null(equalBrackets)){ # for intercept models y ~ 1
+      which_equalBrackets <- 0
+    } else{
+      which_equalBrackets <- which(equalBrackets)
+    }
+    xfmTemp <- paste(substr(xfm[which_equalBrackets], 1 , 
+                        nchar(xfm[which_equalBrackets]) - 1 ), ")", sep = "") # , index=id is done in the beginning
+    xfm[which_equalBrackets] <- xfmTemp
+    rm(xfmTemp)
     tmp <- outer(xfm, tfm, function(x, y) paste(x, y, sep = "%X%"))
     ## <FIXME> use the following specification for irregular response -> adapt coef() and plot()-function 
     ## if(grepl("ONEx", tmp[[1]])) tmp[[1]] <- tfm ## smooth intercept is just time-formula
@@ -691,16 +769,110 @@ FDboost <- function(formula,          ### response ~ xvars
   if(length(where.c) > 0){
     tmp[where.c] <- outer(xfm[where.c], cfm, function(x, y) paste(x, y, sep = "%O%"))
   } 
-  
+
   ## for scalar response without FLAM-model do not use the Kronecker product
   if(scalarNoFLAM){
     tmp <- xfm
   } 
   
+
+  ####### find the number of df for each base-learner 
+  ## for a fair selection of bl the df must be equal in all bl
+  get_df <- function(bl){
+    split_bl <- unlist(strsplit(bl, split = "%.{1,3}%"))
+    all_df <- c()
+    for(i in 1:length(split_bl)){
+      parti <- parse(text = split_bl[i])[[1]] 
+      dfi <- as.call(parti)$df # df of part i in bl 
+      if(is.symbol(dfi)) dfi <- eval(dfi) 
+      lambdai <- as.call(parti)$lambda # if lambda is present, df is ignored 
+      if(is.null(lambdai)){
+        if(is.null(dfi)) dfi <- expand.call(definition = get(as.character(parti[[1]])), call = parti)$df
+        all_df[i] <- dfi 
+      }else{
+        all_df[i] <- NULL 
+      }
+    }
+    ret <- prod(all_df) # global df for bl is product of all df 
+    if( identical(ret, numeric(0)) ) ret <- NULL
+    return(ret)
+  }
   
-  ## put together the model formula 
+  #### get the specified df for each base-learner
+  ## <FIXME> does not take into account base-learners that do not have brackets
+  if(length(tmp) == 0){
+    bl_df <- NULL
+  }else{
+    bl_df <- vector("list", length(tmp))
+    bl_df[equalBrackets] <- lapply(tmp[equalBrackets], function(x) try(get_df(x)))
+    bl_df <- unlist(bl_df[equalBrackets & (!sapply(bl_df, class) %in% "try-error")])
+    
+    if( !is.null(bl_df) && any(abs(bl_df - bl_df[1]) > .Machine$double.eps * 10^10) ){
+      warning("The base-learners differ in the degrees of freedom.")
+    }
+    
+    if(!is.null(bl_df)){
+      df_timeformula <- get_df(tfm) 
+      df_effects <- min(bl_df)
+    }
+  }
+
+  ### replace "1" with intercept base learner
+  formula_intercept <- FALSE
+  if ( any( gsub(" ", "", strsplit(cfm0[2], "\\+")[[1]]) ==  "1")){
+    formula_intercept <- TRUE
+    ## use df or lambda as in timeformula 
+    if( grepl("lambda", deparse(timeformula)) || 
+        ( grepl("bols", deparse(timeformula)) &  !grepl("df", deparse(timeformula))) ){
+      tmp <- c("bols(ONEx, intercept = FALSE, lambda = 0)", tmp)
+    } else{
+      tmp <- c("bols(ONEx, intercept = FALSE, df = 1)", tmp)
+    }
+    
+    ## adjust the df in the timeformula
+    call_tfm <- as.call(parse(text = tfm)[[1]])
+    if(!is.null(bl_df)) call_tfm$df <- df_effects
+    ## <FIXME> is there are nicer way to get a string from the call 
+    tfm_df <- paste0(deparse(call_tfm), collapse = "")
+
+    ## for FLAM model with %O% use anisotropic Kronecker product for not penalizing in direction of ONEx
+    ## use %A0%, as smooth intercept has smooting parameter 0 in 1-direction 
+    if(is.null(id)){
+      if(!scalarNoFLAM) tmp[[1]] <- paste(tmp[[1]], "%A0%", tfm_df)
+    }else{ ## response in long format
+      tmp[[1]] <- tfm_df 
+    }
+  }
+
+  ####### put together the model formula 
   xpart <- paste(as.vector(tmp), collapse = " + ")
   fm <- as.formula(paste("dresponse ~ ", xpart))
+  
+  ## find variables that are defined in environment(formula) but not in environment(fm) or in data 
+  fm_vars <- all.vars(fm) # all variables of fm 
+  ## vars_envir_formula <- fm_vars[ ! fm_vars %in% c(names(data), "dresponse" , "ONEx", "ONEtime", yind) ]
+  # variables that exist in environment(fm) 
+  vars1 <- sapply(fm_vars, exists, envir = environment(fm), inherits = FALSE)   
+  if(!is.null(names(data))){
+    vars2 <- sapply(fm_vars, function(x){ x %in% names(data)} ) # variables that exist in data
+  }else{
+    vars2 <- FALSE 
+  }
+  
+  # variables that exist neither in environment(fm) nor in data... 
+  vars_envir_formula <- fm_vars[ !(vars1 | vars2) ]
+  # ... take those from the environment of the formula with which FDboost was called 
+  for(i in seq_along(vars_envir_formula)){
+    if(! exists(vars_envir_formula[i], envir = environment(formulaFDboost)))
+      stop("Variable <", vars_envir_formula[i], "> does not exist.")
+    tmp <- get(vars_envir_formula[i], envir = environment(formulaFDboost))
+    ## a <- try(get(vars_envir_formula[i], envir = environment(formula))) 
+    # if(class(a) == "try-error") get(vars_envir_formula[i], envir = parent.frame())
+    assign(x = vars_envir_formula[i], value = tmp,  envir = environment(fm))
+  }
+  rm(tmp)
+  
+  # environment(fm)
   
   ### expand weights for observations
   if (is.null(weights)) weights <- rep(1, nr)
@@ -736,6 +908,8 @@ FDboost <- function(formula,          ### response ~ xvars
     #warning(paste("The response contains", sum(is.na(dresponse)) ,"missing values. The corresponding weights are set to 0."))
     w[which(is.na(dresponse))] <- 0
   }
+  
+  if(all(w == 0)) stop("All weights are zero!")
   
   ### offset == "scalar", or offset = numeric of length 1, or scalar response
   ### -> use one scalar/user-specified offset like in mboost
@@ -905,9 +1079,9 @@ FDboost <- function(formula,          ### response ~ xvars
   }
     
   offsetMboost <- offset
-  
-  if (length(data) > 0) {
-    ### mboost isn't happy with nrow(data) == 0
+
+  if (length(data) > 0 && !(is.list(data) && length(data) == 1 && is.null(data[[1]]))) {
+    ### mboost isn't happy with nrow(data) == 0 / list(NULL)
     ret <- mboost(fm, data = data, weights = w, offset = offset, ...) 
   } else {
     ret <- mboost(fm, weights = w, offset = offset, ...)
@@ -937,7 +1111,7 @@ FDboost <- function(formula,          ### response ~ xvars
     }
   }
   
-  ### assign new class (e.g. for specialized predictions)
+  ### assign new class (e.g., for specialized predictions)
   class(ret) <- c("FDboost", class(ret))
   if(!is.null(id)) class(ret) <- c("FDboostLong", class(ret))
   if(scalarResponse) class(ret) <- c("FDboostScalar", class(ret))
@@ -976,6 +1150,9 @@ FDboost <- function(formula,          ### response ~ xvars
   })
   ret$callEval$data <- NULL # do not save data and weights in callEval to save memory
   ret$callEval$weights <- NULL
+  
+  ## save value of numInt
+  ret$numInt <- numInt
   
   # save formulas as character strings to save memory
   ret$timeformula <- paste(deparse(timeformula), collapse = "")

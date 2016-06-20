@@ -11,7 +11,8 @@ bbsc(..., by = NULL, index = NULL, knots = 10, boundary.knots = NULL,
   cyclic = FALSE)
 
 bolsc(..., by = NULL, index = NULL, intercept = TRUE, df = NULL,
-  lambda = 0, K = NULL, contrasts.arg = "contr.treatment")
+  lambda = 0, K = NULL, weights = NULL,
+  contrasts.arg = "contr.treatment")
 
 brandomc(..., contrasts.arg = "contr.dummy", df = 4)
 }
@@ -44,7 +45,7 @@ large amount of smoothing and thus to "weaker" base-learners.}
 \item{lambda}{smoothing parameter of the penalty, computed from \code{df} when
 \code{df} is specified.}
 
-\item{center}{experimental implementation! See \code{\link[mboost]{bbs}}.}
+\item{center}{experimental! See \code{\link[mboost]{bbs}}.}
 
 \item{cyclic}{if \code{cyclic = TRUE} the fitted values coincide at
 the boundaries (useful for cyclic covariates such as day time etc.).}
@@ -54,6 +55,8 @@ of a linear base-learner.}
 
 \item{K}{in \code{bolsc} it is possible to specify the penalty matrix K}
 
+\item{weights}{experiemtnal! weights that are used for the computation of the transformation matrix Z.}
+
 \item{contrasts.arg}{Note that a special \code{contrasts.arg} exists in
 package \code{mboost}, namely "contr.dummy". This contrast is used per default
 in \code{brandomc}. It leads to a
@@ -62,12 +65,12 @@ intercept is implicitly included but each factor level gets a
 separate effect estimate (for more details see \code{\link[mboost]{brandom}}).}
 }
 \value{
-Equally to the base-learners of package mboost:
+Equally to the base-learners of package \code{mboost}:
 
 An object of class \code{blg} (base-learner generator) with a
-\code{dpp} function.
+\code{dpp} function (data pre-processing) and other functions.
 
-The call of \code{dpp} returns an object of class
+The call to \code{dpp} returns an object of class
 \code{bl} (base-learner) with a \code{fit} function. The call to
 \code{fit} finally returns an object of class \code{bm} (base-model).
 }
@@ -77,20 +80,51 @@ with functional response
 }
 \details{
 The base-learners \code{bbsc}, \code{bolsc} and \code{brandomc} are
-basically the base-learners \code{\link[mboost]{bbs}}, \code{\link[mboost]{bols}} and
+the base-learners \code{\link[mboost]{bbs}}, \code{\link[mboost]{bols}} and
 \code{\link[mboost]{brandom}} with additional identifiability constraints.
-Instead of the default identifiability constraints
-(\eqn{\sum_{i,t} \hat f(x_i, t) = 0})
-implemented in \code{mboost} for tensor product terms whose
-marginal terms include the index of the functional
-response \eqn{t} constraints that enforce
-\eqn{\sum_i \hat f(z_i, x_i, t) = 0} for all \eqn{t} are used, so that
+The constraints enforce that
+\eqn{\sum_{i} \hat h(x_i, t) = 0} for all \eqn{t}, so that
 effects varying over \eqn{t} can be interpreted as deviations
 from the global functional intercept, see Web Appendix A of
-Scheipl et al. (2015) and Web Appendix A of Brockhaus et al. (2015) for details on how to enforce the
-constraints.
+Scheipl et al. (2015).
+The constraint is enforced by a basis transformation of the design and penalty matrix.
+In particular, it is sufficient to apply the constraint on the covariate-part of the design
+and penalty matrix and thus, it is not necessary to change the basis in $t$-direction.
+See Appendix A of Brockhaus et al. (2015) for technical details on how to enforce this sum-to-zero constraint.
 
 Cannot deal with any missing values in the covariates.
+}
+\examples{
+n <- 60   ## number of cases
+Gy <- 27  ## number of observation poionts per response trajectory
+dat <- list()
+dat$t <- (1:Gy-1)^2/(Gy-1)^2
+set.seed(123)
+dat$z1 <- rep(c(-1, 1), length = n)
+dat$z1_fac <- factor(dat$z1, levels = c(-1, 1), labels = c("1", "2"))
+# dat$z1 <- runif(n)
+# dat$z1 <- dat$z1 - mean(dat$z1)
+
+mut <- matrix(2*sin(pi*dat$t), ncol=Gy, nrow=n, byrow=TRUE) +
+        outer(dat$z1, dat$t, function(z1, t) z1*cos(pi*t) ) ## true linear predictor
+        ## function(z1, t) z1*cos(4*pi*t)
+sigma <- 0.1
+
+## draw respone y_i(t) ~ N(mu_i(t), sigma)
+dat$y <- apply(mut, 2, function(x) rnorm(mean = x, sd = sigma, n = n))
+
+## fit model
+m1 <- FDboost(y ~ 1 + bolsc(z1_fac, df=1), timeformula = ~ bbs(t, df = 6), data=dat)
+
+## look for optimal mSTOP using cvrisk() or validateFDboost()
+
+## plot estimated coefficients
+plot(dat$t, 2*sin(pi*dat$t), col = 2, type = "l")
+plot(m1, which = 1, lty = 2, add = TRUE)
+
+plot(dat$t, 1*cos(pi*dat$t), col = 2, type = "l")
+lines(dat$t, -1*cos(pi*dat$t), col = 2, type = "l")
+plot(m1, which = 2, lty = 2, col = 1, add = TRUE)
 }
 \author{
 Sarah Brockhaus, Almond Stoecker
@@ -105,7 +139,7 @@ Functional Additive Mixed Models, Journal of Computational and Graphical Statist
 \seealso{
 \code{\link{FDboost}} for the model fit.
 \code{\link[mboost]{bbs}}, \code{\link[mboost]{bols}} and \code{\link[mboost]{brandom}} for the
-corresponding base-learners in mboost.
+corresponding base-learners in \code{mboost}.
 }
 \keyword{models}
 

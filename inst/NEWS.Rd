@@ -2,6 +2,60 @@
 \title{News for Package 'FDboost'}
 
 
+\section{Changes in FDboost version 0.2-0 (2016-05-26)}{
+    \subsection{User-visible changes}{
+    \itemize{
+    \item add function applyFolds() to compute the optimal stopping iteration
+    }
+  }
+  \subsection{Bug-fixes}{
+    \itemize{
+    \item allow for extrapolation in predict() with bbsc()
+    }
+    }
+}
+
+\section{Changes in FDboost version 0.1-2 (2016-04-22)}{
+    \subsection{Bug-fixes}{
+    \itemize{
+    \item bugfix in bolsc(): correctly use index in bolsc() / bbsc(), 
+          before: for the computation of Z each observation was used only once 
+    }
+    }
+    \subsection{User-visible changes}{
+    \itemize{
+    \item add function %Xa0% that computes a row-tensor product of two base-learners where 
+          the penalty in one direction is zero  
+    \item add function reweightData() that computes the data for Bootstrap or cross-falidation folds
+	  \item add function stabsel.FDboost() that refits the smooth offset in each fold  
+	  \item add argument 'fun' to validateFDboost() 
+	  \item add update.FDboost() that overwrites update.mboost()
+    }
+  }
+   \subsection{Miscellaneous}{
+    \itemize{
+	  \item FDboost() works with family = Binomial()  		 
+    }
+  }
+}
+
+
+\section{Changes in FDboost version 0.1-1 (2016-04-06)}{
+  \subsection{Bug-fixes}{
+    \itemize{
+	    \item fix oobpred in validateFDboost() for irregular response and resampling on the level of curves 
+	    and thus plot.validateFDboost() works for that case 
+	    \item fix scope of formula in FDboost(): now the formula given to mboost() within FDboost() uses the variables in the environment of the formula specified in FDboost() 
+    }
+  }
+    \subsection{Miscellaneous}{
+    \itemize{
+	  \item plot.FDboost() works for more effects, especially for effects like bolsc() %X% bhistx()  		 
+    }
+  }
+}
+
+
 \section{Changes in FDboost version 0.1-0 (2016-03-10)}{
   \subsection{User-visible changes}{
     \itemize{

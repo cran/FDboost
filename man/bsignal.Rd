@@ -28,8 +28,8 @@ bfpc(x, s, index = NULL, df = 4, lambda = NULL, pve = 0.99,
 \item{x}{matrix of functional variable x(s). The functional covariate has to be
 supplied as n by <no. of evaluations> matrix, i.e. each row is one functional observation.}
 
-\item{s}{vector for the index of the functional variable x(s) giving
-measurement points.}
+\item{s}{vector for the index of the functional variable x(s) giving the
+measurement points of the functional covariate.}
 
 \item{index}{a vector of integers for expanding the signal variable in \code{x}
 For example, \code{bsignal(X, s, index = index)} is equal to \code{bsignal(X[index,], s)},
@@ -77,14 +77,16 @@ that all trajectories have the same mean
 for \code{penalty="pss"} the penalty matrix is transformed to have full rank,
 so called shrinkage approach by Marra and Wood (2011)}
 
-\item{check.ident}{use checks for identifiability of the effect, based on Scheipl and Greven (2016)}
+\item{check.ident}{use checks for identifiability of the effect, based on Scheipl and Greven (2016)
+for linear functional effect using \code{bsignal} and
+based on Brockhaus et al. (2016) for historical effects using \code{bhist}}
 
 \item{time}{vector for the index of the functional response y(time)
-giving the measurement points.}
+giving the measurement points of the functional response.}
 
-\item{limits}{defaults to \code{"s<=t"} for an historical effect with s<=t,
-otherwise specifies the integration limits s_{hi, i}, s_{lo, i}:
-either one of \code{"s<t"} or \code{"s<=t"} for (s_{hi, i}, s_{lo, i}) = (0, t) or a
+\item{limits}{defaults to \code{"s<=t"} for an historical effect with s<=t;
+either one of \code{"s<t"} or \code{"s<=t"} for [l(t), u(t)] = [T1, t];
+otherwise specify limits as a function for integration limits [l(t), u(t)]:
 function that takes \eqn{s} as the first and \code{t} as the second argument and returns
 \code{TRUE} for combinations of values (s,t) if \eqn{s} falls into the integration range for
 the given \eqn{t}.}
@@ -99,11 +101,11 @@ over the functional covariate \eqn{x(s)}}
 \item{inTime}{historical effect can be smooth, linear or constant in time,
 which is the index of the functional response y(time).}
 
-\item{pve}{proportion of variance explained: used to choose the number of principal components.}
+\item{pve}{proportion of variance explained: used to choose the number of functional principal components (FPCs).}
 
-\item{npc}{prespecified value for the number of principal components (if given, this overrides \code{pve}).}
+\item{npc}{prespecified value for the number of FPCs (if given, this overrides \code{pve}).}
 
-\item{npc.max}{maximal number K of FPCs to use, regardless of decomppars; defaults to 15.}
+\item{npc.max}{maximal number K of FPCs to use, regardless of \code{decomppars}; defaults to 15.}
 
 \item{getEigen}{save the eigenvalues and eigenvectors, defaults to \code{TRUE}.}
 }
@@ -134,7 +136,7 @@ The functional variable must be observed on one common grid \code{s}.
 on a functional response, i.e., an effect of the form \eqn{x_i(t)\beta(t)} for
 a functional response \eqn{Y_i(t)} and concurrently observed covariate \eqn{x_i(t)}.
 \code{bconcurrent} can only be used if \eqn{Y(t)} and \eqn{x(s)} are observed over
-the same domain \eqn{s,t \in [t_0, T]}.
+the same domain \eqn{s,t \in [T1, T2]}.
 Note that in the case of \code{bhist} the argument \code{index} is treated
 like a variable and thus has to be given as variable in \code{newdata},
 if \code{predict.FDboost} is with argument \code{newdata}.
@@ -144,25 +146,29 @@ flexible integration limits \code{l(t)}, \code{r(t)} and the possibility to
 standardize the effect by \code{1/t} or the length of the integration interval.
 The effect is \eqn{stand * \int_{l(t)}^{r_{t}} x(s)\beta(t,s)ds}.
 The base-learner defaults to a historical effect of the form
-\eqn{\int_{t0}^{t} x_i(s)\beta(t,s)ds},
-where \eqn{t0} is the minimal index of \eqn{t} of the response \eqn{Y(t)}.
+\eqn{\int_{T1}^{t} x_i(s)\beta(t,s)ds},
+where \eqn{T1} is the minimal index of \eqn{t} of the response \eqn{Y(t)}.
 \code{bhist} can only be used if \eqn{Y(t)} and \eqn{x(s)} are observed over
-the same domain \eqn{s,t \in [t_0, T]}.
+the same domain \eqn{s,t \in [T1, T2]}.
 The functional variable must be observed on one common grid \code{s},
 see Brockhaus et al. (2016) for details on historical effects.
 
-\code{bfpc} is a base-learner for functional covariates based on
-functional principal component analysis (FPCA). The functional covariate
+\code{bfpc} is a base-learner for a linear effect of functional covariates based on
+functional principal component analysis (FPCA).
+For the funcitonal linear effect \eqn{\int x_i(s)\beta(s)ds} the functional covariate
+and the coefficient function are represented by a FPC basis.
+The functional covariate
 \eqn{x(s)} is decomposed into \eqn{x(s) \approx \sum_{k=1}^K \xi_{ik} \Phi_k(s)} using
-\code{\link[refund]{fpca.sc}} and represents \eqn{\beta(s)} in the function
+\code{\link[refund]{fpca.sc}} for the truncated Karhunen-Loeve decomposition.
+Then \eqn{\beta(s)} is represented in the function
 space spanned by \eqn{\Phi_k(s)}, see Scheipl et al. (2015) for details.
 The implementation is similar to \code{\link[refund]{ffpc}}.
 This is an experimental base-learner and not well tested yet.
 
 It is recommended to use centered functional covariates with
 \eqn{\sum_i x_i(s) = 0} for all \eqn{s} in \code{bsignal}-,
-\code{bhist}- and \code{bconcurrent}-terms
-so that the effects are centered per time-point of the response.
+\code{bhist}- and \code{bconcurrent}-terms.
+For centered covariates, the effects are centered per time-point of the response.
 If all effects are centered, the functional intercept
 can be interpreted as the global mean function.
 
@@ -170,7 +176,7 @@ The base-learners for functional covariates cannot deal with any missing
 values in the covariates.
 }
 \examples{
-######## Example for scalar-on-function-regression
+######## Example for scalar-on-function-regression with bsignal
 data("fuelSubset", package = "FDboost")
 
 ## center the functional covariates per observed wavelength
@@ -189,6 +195,87 @@ mod2 <- FDboost(heatan ~ bsignal(UVVIS, uvvis.lambda, knots=40, df=4, check.iden
                timeformula=NULL, data=fuelSubset)
 summary(mod2)
 ## plot(mod2)
+
+
+###############################################
+### data simulation like in manual of pffr::ff
+
+if(require(refund)){
+
+#########
+# model with linear functional effect, use bsignal()
+# Y(t) = f(t)  + \\int X1(s)\\beta(s,t)ds + eps
+set.seed(2121)
+data1 <- pffrSim(scenario = "ff", n = 40)
+data1$X1 <- scale(data1$X1, scale = FALSE)
+dat_list <- as.list(data1)
+dat_list$t <- attr(data1, "yindex")
+dat_list$s <- attr(data1, "xindex")
+
+## model fit by FDboost
+m1 <- FDboost(Y ~ 1 + bsignal(x= X1, s = s, knots = 5),
+              timeformula = ~ bbs(t, knots = 5), data=dat_list,
+              control = boost_control(mstop = 21))
+
+## search optimal mSTOP
+\dontrun{
+  set.seed(123)
+  cv <- validateFDboost(m1, grid = 1:100) # 21 iterations
+}
+
+## model fit by pffr
+t <- attr(data1, "yindex")
+s <- attr(data1, "xindex")
+m1_pffr <- pffr(Y ~ ff(X1, xind=s), yind=t, data=data1)
+
+\dontrun{
+  par(mfrow = c(2, 2))
+  plot(m1, which = 1); plot(m1, which = 2)
+  plot(m1_pffr, select = 1, shift = m1_pffr$coefficients["(Intercept)"])
+  plot(m1_pffr, select = 2)
+}
+
+
+############################################
+# model with functional historical effect, use bhist()
+# Y(t) = f(t)  + \\int_0^t X1(s)\\beta(s,t)ds + eps
+set.seed(2121)
+mylimits <- function(s, t){
+  (s < t) | (s == t)
+}
+data2 <- pffrSim(scenario = "ff", n = 40, limits = mylimits)
+data2$X1 <- scale(data2$X1, scale = FALSE)
+dat2_list <- as.list(data2)
+dat2_list$t <- attr(data2, "yindex")
+dat2_list$s <- attr(data2, "xindex")
+
+## model fit by FDboost
+m2 <- FDboost(Y ~ 1 + bhist(x = X1, s = s, time = t, knots = 5),
+              timeformula = ~ bbs(t, knots = 5), data = dat2_list,
+              control = boost_control(mstop = 40))
+
+## search optimal mSTOP
+\dontrun{
+  set.seed(123)
+  cv2 <- validateFDboost(m2, grid = 1:100) # 40 iterations
+}
+
+## model fit by pffr
+t <- attr(data2, "yindex")
+s <- attr(data2, "xindex")
+m2_pffr <- pffr(Y ~ ff(X1, xind = s, limits = "s<=t"), yind = t, data = data2)
+
+\dontrun{
+par(mfrow = c(2, 2))
+plot(m2, which = 1); plot(m2, which = 2)
+## plot of smooth intercept does not contain m1_pffr$coefficients["(Intercept)"]
+plot(m2_pffr, select = 1, shift = m2_pffr$coefficients["(Intercept)"])
+plot(m2_pffr, select = 2)
+
+}
+
+
+}
 }
 \references{
 Brockhaus, S., Scheipl, F., Hothorn, T. and Greven, S. (2015):
@@ -196,7 +283,7 @@ The functional linear array model. Statistical Modelling, 15(3), 279-300.
 
 Brockhaus, S., Melcher, M., Leisch, F. and Greven, S. (2016):
 Boosting flexible functional regression models with a high number of functional historical effects,
-under revision.
+Statistics and Computing, accepted.
 
 Marra, G. and Wood, S.N. (2011): Practical variable selection for generalized additive models.
 Computational Statistics & Data Analysis, 55, 2372-2387.

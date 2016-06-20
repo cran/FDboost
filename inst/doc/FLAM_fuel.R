@@ -58,37 +58,7 @@ fuel$dnir.lambda <- fuel$nir.lambda[-1]
 
 
 ###################################################
-### code chunk number 4: plot-data
-###################################################
-# pdf("NIR_UVVIS.pdf", width=7, height=7)
-jpeg("NIR_UVVIS.jpg", width=1500, height=1500)
-par(mfrow=c(2,2), mar=c(4, 4, 1, 1), cex=1.5)
-
-# generate colors depending on heat value for equidistant cuts
-quants <- seq(from=min(fuel$heatan), to=max(fuel$heatan), l=11) 
-cats <- cut(fuel$heatan, quants, include.lowest = TRUE)
-pall <- heat.colors(12, alpha = 0.5)[1:10]
-cols <- pall[cats]
-
-## plot heatan
-with(fuel, hist(heatan, breaks=quants, col=pall, 
-                xlab="heat value [MJ]", main=""))
-
-## plot heat values versus predicted humidity
-with(fuel, plot(heatan~h2o, col=cols, pch=20, lwd=2,
-                xlab="predicted humidity [%]", ylab="heat value [MJ]"))
-with(fuel, points(heatan~h2o, col=1))
-
-## plot the two spectra
-with(fuel, matplot(uvvis.lambda, t(UVVIS), col=cols,
-      lwd=1, lty=1, ylab="UV-VIS", xlab="wavelength [nm]", type="l"))
-with(fuel, matplot(nir.lambda, t(NIR), col=cols,
-      lwd=1, lty=1, ylab="NIR", xlab="wavelength [nm]", type="l"))
-dev.off()
-
-
-###################################################
-### code chunk number 5: model-spec
+### code chunk number 4: model-spec
 ###################################################
 formula <- formula(heatan ~ bsignal(UVVIS, uvvis.lambda, knots=40, df=4.41) 
                    + bsignal(NIR, nir.lambda, knots=40, df=4.41))
@@ -99,7 +69,7 @@ mod <- mod[198]
 
 
 ###################################################
-### code chunk number 6: cv-model-spec (eval = FALSE)
+### code chunk number 5: cv-model-spec (eval = FALSE)
 ###################################################
 ## ## get optimal mstop and do bootstrapping for coefficient estimates
 ## set.seed(2703)
@@ -115,7 +85,7 @@ mod <- mod[198]
 
 
 ###################################################
-### code chunk number 7: model-spec-plot
+### code chunk number 6: model-spec-plot
 ###################################################
 par(mfrow=c(1,2))
 plot(mod, which=1, lwd=2, lty=5, rug=FALSE,

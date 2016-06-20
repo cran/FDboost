@@ -378,15 +378,22 @@ fitModelMboost <- function(data,
   ## do not use the array structure -> fit the model in long format
   if(!useArray){
     data$Y <- as.vector(t(data$Y)) 
-    myid <- rep(1:nrow(data$X1), each=length(data$t))
+    data$myid <- rep(1:nrow(data$X1), each=length(data$t))
     data$t <- rep(data$t, times=nrow(data$X1))
   }else{
-    myid <- NULL
+    data$myid <- NULL
   }
   
   time <- system.time({ 
-    mem <- mem_change(m <- try(FDboost(eval(formula), data=data, control=control,
-                     timeformula = timeformula, id=myid)))  
+    
+    if(useArray){
+      mem <- mem_change(m <- try(FDboost(eval(formula), data=data, control=control,
+                                         timeformula = timeformula))) 
+    }else{ ## data in long format
+      mem <- mem_change(m <- try(FDboost(eval(formula), data=data, control=control,
+                                         timeformula = timeformula, id=~myid))) 
+    }
+ 
     # plot(m$risk())
     if(any(class(m)=="FDboost") & optimizeMstop){
       
@@ -763,7 +770,7 @@ plotModel <- function(err, errB=NULL, data, theseSettings, subset=sample(1:these
     plot(data$true_g0, main=bquote(g[0](t)), xlab="", ylab="", xaxt="n", ylim=range, type="l")
     if(!is.null(err)){
       plot(est$est_g0, xlab="", ylab="", xaxt="n", ylim=range, type="l", 
-           main=bquote(paste("PFFR: ", hat(g[0])(t), ": reliMSE", phantom(x)%~~% .(round(err$relmseg0, 4)))))      
+           main=bquote(paste("FAMM: ", hat(g[0])(t), ": reliMSE", phantom(x)%~~% .(round(err$relmseg0, 4)))))      
     }
     if(!is.null(errB)){
       plot(estB$est_g0, xlab="", ylab="", xaxt="n", ylim=range, type="l",

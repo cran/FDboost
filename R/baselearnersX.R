@@ -60,7 +60,7 @@ hyper_histx <- function(mf, vary, knots = 10, boundary.knots = NULL, degree = 3,
 ### model.matrix for P-splines base-learner of signal matrix mf
 ### for response observed over a common grid, args$format="wide"
 ### or irregularly observed reponse, args$format="long" 
-X_histx <- function(mf, vary, args, getDesign=TRUE) {
+X_histx <- function(mf, vary, args) {
   
   stopifnot(is.data.frame(mf))
   varnames <- names(mf)
@@ -100,28 +100,6 @@ X_histx <- function(mf, vary, args, getDesign=TRUE) {
   L <- args$intFun(X1=X1, xind=xind)
   # print(L[1,])
   
-  ## see Scheipl and Greven: Identifiability in penalized function-on-function regression models  
-  ## <FIXME> only check identifiability for smooth effects?
-  ## <FIXME> check identifiability for historic effect in the same way as for functional effect?
-  if(args$check.ident && args$inS=="smooth"){
-    K1 <- diff(diag(ncol(Bs)), differences = args$differences)
-    K1 <- crossprod(K1)
-    # compute the kernel overlap cumulative?
-    cumOverlap <- FALSE 
-    # only for historical model of past
-    if( !is.function(args$limits) && args$limits %in% c("s<t", "s<=t") ) cumOverlap <- TRUE 
-    res_check <- check_ident(X1=X1, L=L, Bs=Bs, K=K1, xname=xname, 
-                             penalty=args$penalty, cumOverlap=cumOverlap)
-    args$penalty <- res_check$penalty
-    args$logCondDs <- res_check$logCondDs
-    args$overlapKe <- res_check$overlapKe
-    args$cumOverlapKe <- res_check$cumOverlapKe
-    args$maxK <- res_check$maxK
-  }
-  
-  # X_hist was only run to check for identifiability
-  #if(!getDesign) return(list(args=args))
-  
   ## Weighting with matrix of functional covariate
   #X1 <- L*X1 ## -> do the integration weights more sophisticated!!
   
@@ -133,7 +111,7 @@ X_histx <- function(mf, vary, args, getDesign=TRUE) {
   #     X1des0[(nrow(X1)*(i-1)+1):nrow(X1des0) ,i] <- X1[,i] # use fun. variable * integration weights
   #   }
   
-  ## set up design matrix for historical model according to limit()
+  ## set up design matrix for historical model according to args$limits()
   # use the argument limits (Code taken of function ff(), package refund)
   limits <- args$limits
   if (!is.null(limits)) {
@@ -274,6 +252,24 @@ X_histx <- function(mf, vary, args, getDesign=TRUE) {
   # Design matrix is product of expanded X1 and basis expansion over xind 
   X1des <- X1des %*% Bs
   
+  ## see Scheipl and Greven (2016) Identifiability in penalized function-on-function regression models  
+  if(args$check.ident && args$inS == "smooth"){
+    K1 <- diff(diag(ncol(Bs)), differences = args$differences)
+    K1 <- crossprod(K1)
+    # use the limits function to compute check measures on corresponding subsets of x(s) and B_j
+    res_check <- check_ident(X1 = X1, L = L, Bs = Bs, K = K1, xname = xname, 
+                             penalty = args$penalty, 
+                             limits = args$limits, 
+                             yind = yind, id = id, # yind is always in long format 
+                             X1des = X1des, ind0 = ind0, xind = xind)
+    args$penalty <- res_check$penalty
+    args$logCondDs <- res_check$logCondDs
+    args$logCondDs_hist <- res_check$logCondDs_hist
+    args$overlapKe <- res_check$overlapKe
+    args$cumOverlapKe <- res_check$cumOverlapKe
+    args$maxK <- res_check$maxK
+  }
+  
   # wide: design matrix over index of response for one response
   # long: design matrix over index of response (yind has long format!)
   Bt <- switch(args$inTime, 
@@ -308,9 +304,9 @@ X_histx <- function(mf, vary, args, getDesign=TRUE) {
   if(args$inS == "smooth"){
     K1 <- diff(diag(ncol(Bs)), differences = args$differences)
     K1 <- crossprod(K1)    
-    if(args$penalty=="pss"){
-      shrink <- 0.1 # <FIXME> allow for variable shrinkage parameter?
-      K1 <- penalty_pss(K=K1, difference=args$difference, shrink=0.1)
+    if(args$penalty == "pss"){
+      # <FIXME> allow for variable shrinkage parameter in penalty_pss()? 
+      K1 <- penalty_pss(K = K1, difference = args$difference, shrink = 0.1)
     }    
   }else{ # Ridge-penalty
     K1 <- diag(ncol(Bs))
@@ -386,7 +382,8 @@ X_histx <- function(mf, vary, args, getDesign=TRUE) {
 #' @param penalty by default, \code{penalty="ps"}, the difference penalty for P-splines is used, 
 #' for \code{penalty="pss"} the penalty matrix is transformed to have full rank, 
 #' so called shrinkage approach by Marra and Wood (2011)
-#' @param check.ident use checks for identifiability of the effect, based on Scheipl and Greven (2015b)
+#' @param check.ident use checks for identifiability of the effect, based on Scheipl and Greven (2016); 
+#'   see Brockhaus et al. (2016) for identifiability checks that take into account the integration limits
 #' @param standard the historical effect can be standardized with a factor. 
 #' "no" means no standardization, "time" standardizes with the current value of time and 
 #' "lenght" standardizes with the lenght of the integral 
@@ -396,9 +393,9 @@ X_histx <- function(mf, vary, args, getDesign=TRUE) {
 #' which is the index of the functional covariates x(s). 
 #' @param inTime historical effect can be smooth, linear or constant in time, 
 #' which is the index of the functional response y(time). 
-#' @param limits defaults to \code{"s<=t"} for an historical effect with s<=t, 
-#' otherwise specifies the integration limits s_{hi, i}, s_{lo, i}: 
-#' either one of \code{"s<t"} or \code{"s<=t"} for (s_{hi, i}, s_{lo, i}) = (0, t) or a 
+#' @param limits defaults to \code{"s<=t"} for an historical effect with s<=t;  
+#' either one of \code{"s<t"} or \code{"s<=t"} for [l(t), u(t)] = [T1, t]; 
+#' otherwise specify limits as a function for integration limits [l(t), u(t)]: 
 #' function that takes \eqn{s} as the first and \code{t} as the second argument and returns 
 #' \code{TRUE} for combinations of values (s,t) if \eqn{s} falls into the integration range for 
 #' the given \eqn{t}.  
@@ -406,12 +403,12 @@ X_histx <- function(mf, vary, args, getDesign=TRUE) {
 #' @details \code{bhistx} implements a base-learner for functional covariates with 
 #' flexible integration limits \code{l(t)}, \code{r(t)} and the possibility to
 #' standardize the effect by \code{1/t} or the length of the integration interval. 
-#' The effect is \code{stand * int_{l(t)}^{r_{t}} x(s)beta(t,s)ds}. 
+#' The effect is \code{stand * int_{l(t)}^{r_{t}} x(s)beta(t,s) ds}. 
 #' The base-learner defaults to a historical effect of the form 
-#' \eqn{\int_{t0}^{t} x_i(s)beta(t,s)ds}, 
-#' where \eqn{t0} is the minimal index of \eqn{t} of the response \eqn{Y(t)}. 
+#' \eqn{\int_{T1}^{t} x_i(s)beta(t,s) ds}, 
+#' where \eqn{T1} is the minimal index of \eqn{t} of the response \eqn{Y(t)}. 
 #' \code{bhistx} can only be used if \eqn{Y(t)} and \eqn{x(s)} are observd over
-#' the same domain \eqn{s,t \in [t_0, T]}. 
+#' the same domain \eqn{s,t \in [T1, T2]}. 
 #' 
 #' Note that the data has to be supplied as a \code{hmatrix} object for 
 #' model fit and predictions. 
@@ -419,7 +416,7 @@ X_histx <- function(mf, vary, args, getDesign=TRUE) {
 #' @return Equally to the base-learners of package mboost: 
 #' 
 #' An object of class \code{blg} (base-learner generator) with a 
-#' \code{dpp} function. 
+#' \code{dpp} function (dpp, data pre-processing). 
 #' 
 #' The call of \code{dpp} returns an object of class 
 #' \code{bl} (base-learner) with a \code{fit} function. The call to 
@@ -429,15 +426,19 @@ X_histx <- function(mf, vary, args, getDesign=TRUE) {
 #' @keywords models
 #' 
 #' @references 
+#' Brockhaus, S., Melcher, M., Leisch, F. and Greven, S. (2016): 
+#' Boosting flexible functional regression models with a high number of functional historical effects, 
+#' Statistics and Computing, accepted. 
+#' 
 #' Marra, G. and Wood, S.N. (2011): Practical variable selection for generalized additive models. 
 #' Computational Statistics & Data Analysis, 55, 2372-2387.
 #' 
-#' Scheipl, F., Staicu, A.-M. and Greven, S. (2015a): 
+#' Scheipl, F., Staicu, A.-M. and Greven, S. (2015): 
 #' Functional Additive Mixed Models, Journal of Computational and Graphical Statistics, 24(2), 477-501.
 #' \url{http://arxiv.org/abs/1207.5947} 
 #' 
-#' Scheipl, F. and Greven, S. (2015b): Identifiability in penalized function-on-function regression models. 
-#' Technical Report 125, Department of Statistics, LMU Muenchen.
+#' Scheipl, F. and Greven, S. (2016): Identifiability in penalized function-on-function regression models. 
+#' Electronic Journal of Statistics, 10(1), 495-526. 
 #'  
 #' @examples 
 #' if(require(refund)){
@@ -447,6 +448,7 @@ X_histx <- function(mf, vary, args, getDesign=TRUE) {
 #' nygrid <- 35
 #' data1 <- pffrSim(scenario = c("int", "ff"), limits = function(s,t){ s <= t }, 
 #'                 n = n, nygrid = nygrid)
+#' data1$X1 <- scale(data1$X1, scale = FALSE) ## center functional covariate                  
 #' dataList <- as.list(data1)
 #' dataList$tvals <- attr(data1, "yindex")
 #'
@@ -461,9 +463,13 @@ X_histx <- function(mf, vary, args, getDesign=TRUE) {
 #' dataList$zlong <- factor(gl(n = 2, k = n/2, length = n*nygrid), levels = 1:3)  
 #' dataList$z <- factor(gl(n = 2, k = n/2, length = n), levels = 1:3)
 #'
-#' ## do the model fit with main effect of bhistx() and interaction of bhistx and bolsc
+#' ## do the model fit with main effect of bhistx() and interaction of bhistx() and bolsc()
 #' mod <- FDboost(Y ~ 1 + bhistx(x = X1h, df = 5, knots = 5) + 
 #'                bhistx(x = X1h, df = 5, knots = 5) %X% bolsc(zlong), 
+#'               timeformula = ~ bbs(tvals, knots = 10), data = dataList)
+#'               
+#' ## alternative parameterization: interaction of bhistx() and bols()
+#' mod <- FDboost(Y ~ 1 + bhistx(x = X1h, df = 5, knots = 5) %X% bols(zlong), 
 #'               timeformula = ~ bbs(tvals, knots = 10), data = dataList)
 #'
 #' \dontrun{
@@ -471,17 +477,19 @@ X_histx <- function(mf, vary, args, getDesign=TRUE) {
 #'   cv <- cvrisk(mod, folds = cv(model.weights(mod), B = 5))
 #'   mstop(cv)
 #'   mod[mstop(cv)]
+#'   
+#'   appl1 <- applyFolds(mod, folds = cv(rep(1, length(unique(mod$id))), type = "bootstrap", B = 5))
 #'
 #'  # plot(mod)
 #' }
 #'}
 #' 
 #' @export
-### P-spline base-learner for hmatrix-objet
+### P-spline base-learner for effect with time-specific integration limits using a hmatrix-object
 bhistx <- function(x, 
-                  limits="s<=t", standard=c("no", "time", "length"), 
-                  intFun=integrationWeightsLeft, 
-                  inS=c("smooth","linear","constant"), inTime=c("smooth","linear","constant"),
+                  limits = "s<=t", standard = c("no", "time", "length"), 
+                  intFun = integrationWeightsLeft, 
+                  inS = c("smooth","linear","constant"), inTime = c("smooth", "linear", "constant"),
                   knots = 10, boundary.knots = NULL, degree = 3, differences = 1, df = 4,
                   lambda = NULL, #center = FALSE, cyclic = FALSE
                   penalty = c("ps", "pss"), check.ident = FALSE
@@ -531,13 +539,9 @@ bhistx <- function(x,
             "i.e., base-learners may depend on different",
             " numbers of observations.")
   
-  #index <- NULL 
-  #browser()
-  
-  ## call X_hist in order to compute parameter settings, e.g. 
+  ## call X_histx in order to compute parameter settings, e.g. 
   ## the transformation matrix Z, shrinkage penalty, identifiability problems...
-  
-  ### X_hist for data in long format, as hmatrix is always in long-format
+  # X_histx for data in long format, as hmatrix is always in long-format
   temp <- X_histx(mf, vary, 
                  args = hyper_histx(mf, vary, knots = knots, boundary.knots = boundary.knots, 
                                    degree = degree, differences = differences,
@@ -546,8 +550,7 @@ bhistx <- function(x,
                                    standard = standard, intFun = intFun, 
                                    inS = inS, inTime = inTime, 
                                    penalty = penalty, check.ident = check.ident, 
-                                   format="long"), 
-                 getDesign=FALSE)
+                                   format="long"))
   temp$args$check.ident <- FALSE
   
   ret <- list(model.frame = function() mf,

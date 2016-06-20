@@ -122,7 +122,7 @@ funplot <- function(x, y, id=NULL, rug=TRUE, ...){
     
     stopifnot(length(x) == ncol(y))
     
-    # Checke weather there are at least two values per row for the interpolation
+    # Check whether there are at least two values per row for the interpolation
     atLeast2values <- apply(y, 1, function(x) sum(is.na(x)) < length(x)-1 )
     if(any(!atLeast2values)) warning(sum(!atLeast2values), " rows contain less than 2 non-missing values.")  
     
@@ -143,7 +143,7 @@ funplot <- function(x, y, id=NULL, rug=TRUE, ...){
                  myargs=list(x=time, y=t(yint), type="l", lty=3, add=TRUE) )
     
     if(rug) rug(time, 0.01)
-  
+    
   }else{
     
     stopifnot(length(x)==length(y) & length(y)==length(id))
@@ -208,9 +208,9 @@ funplot <- function(x, y, id=NULL, rug=TRUE, ...){
     
   }
   
-#   matplot(time, t(y), xlab=xlabel, ylab="", type="p", pch=3)
-#   matplot(time, t(y), type="l", pch=1, lty=1, add=TRUE)
-#   matplot(time, t(yint), type="l", pch=1, lty=3, add=TRUE)  
+  #   matplot(time, t(y), xlab=xlabel, ylab="", type="p", pch=3)
+  #   matplot(time, t(y), type="l", pch=1, lty=1, add=TRUE)
+  #   matplot(time, t(yint), type="l", pch=1, lty=3, add=TRUE)  
 }
 
 
@@ -240,20 +240,29 @@ plotPredicted <- function(x, subset=NULL, posLegend="topleft", lwdObs=1, lwdPred
     yind <- x$yind[x$id %in% subset] 
     id <- x$id[x$id %in% subset]
   }
-
-  ylim <- range(response, pred, na.rm = TRUE)
   
-  if(length(x$yind)>1){
-    # Observed values
-    funplot(yind, response, id=id, pch=1, ylim=ylim, lty=3, 
-            ylab=x$yname, xlab=attr(x$yind, "nameyind"), lwd=lwdObs, ...)
-    funplot(yind, pred, id=id, pch=2, lwd=lwdPred, add=TRUE, ...)
-    # predicted values
-    legend(posLegend, legend=c("observed","predicted"), col=1, pch=1:2)  
-  }else{
-    plot(response, pred, ylab="predicted", xlab="observed", ...)
-    abline(0,1)
-  }  
+  if(is.character(response) | is.factor(x$response)){
+    message("For response that is not continuous only the predicted values are plotted.")
+    ylim <- range(pred, na.rm = TRUE)
+    funplot(yind, pred, id=id, pch=2, lwd=lwdPred, ... )
+  } else{
+    
+    ylim <- range(response, pred, na.rm = TRUE)
+    
+    if(length(x$yind)>1){
+      # Observed values
+      funplot(yind, response, id=id, pch=1, ylim=ylim, lty=3, 
+              ylab=x$yname, xlab=attr(x$yind, "nameyind"), lwd=lwdObs, ...)
+      funplot(yind, pred, id=id, pch=2, lwd=lwdPred, add=TRUE, ...)
+      # predicted values
+      legend(posLegend, legend=c("observed","predicted"), col=1, pch=1:2)  
+    }else{
+      plot(response, pred, ylab="predicted", xlab="observed", ...)
+      abline(0,1)
+    }
+    
+  }
+  
 }
 
 
@@ -264,6 +273,8 @@ plotPredicted <- function(x, subset=NULL, posLegend="topleft", lwdObs=1, lwdPred
 #' 
 ### function to plot the residuals
 plotResiduals <- function(x, subset=NULL, posLegend="topleft", ...){
+  
+  if(is.character(x$response) | is.factor(x$response)) stop("plotResiduals() only works for continuous response.")
   
   stopifnot("FDboost" %in% class(x))
   
@@ -290,7 +301,7 @@ plotResiduals <- function(x, subset=NULL, posLegend="topleft", ...){
     plot(response, response-pred, ylab="residuals", xlab="observed", ...)
     #abline(h=0)
   }
-
+  
 }
 
 
@@ -405,7 +416,7 @@ funRsquared <- function(object, overTime=TRUE, breaks=object$yind, global=FALSE,
     attr(ret, "name") <- "global R-squared"
     return(ret)
   }
-    
+  
   ### for each time-point t 
   if(overTime){ 
     # Mean function over time (matrix containing the mean in each t in the whole column)
@@ -598,7 +609,7 @@ funMRD <- function(object, overTime=TRUE, breaks=object$yind, global=FALSE,  ...
     yhat <- temp$yhat
     time <- temp$time
   }
-
+  
   # You cannot use observations that are 0, so set them to NA
   y1 <- y
   y1[ round(y1, 1) == 0 ] <- NA
@@ -635,64 +646,71 @@ funMRD <- function(object, overTime=TRUE, breaks=object$yind, global=FALSE,  ...
 
 
 ## based on code of function ff() in package refund
-## see Scheipl and Greven, 2014: Identifiability in penalized function-on-function regression models 
+## see Scheipl and Greven, 2016: Identifiability in penalized function-on-function regression models 
 # X1 matrix of functional covariate x(s)
 # L matrix of integration weights
 # Bs matrix of spline expansion in s
 # K penalty matrix
 # xname name of functional covariate
 # penalty the type of the penalty one of "ps" or "pps"
-# cumOverlap should a cumulative overlap be computed, 
-# which is especially suited for a historical effect with triangular coefficient surface?
+# cumOverlap DEPRECATED should a cumulative overlap be computed, 
+#   which is especially suited for a historical effect with triangular coefficient surface?
 # limits the limits function of the historical effect, default to NULL for unconstrained effect
-# yind, id, X1des, ind0, xind pass from X_hist() to compute sequential identifiability measures
+#   if limits is supplied a cumulative overlap and condition number according to limits is computed 
+# yind, id, X1des, ind0, xind passed from X_hist() to compute sequential identifiability measures
 # giveWarnings should warnings be printed
 check_ident <- function(X1, L, Bs, K, xname, penalty, 
-                        cumOverlap=FALSE, 
-                        limits=NULL, yind=NULL, 
-                        t_unique=NULL, 
-                        id=NULL, 
-                        X1des=NULL, ind0=NULL, xind=NULL, 
+                        ## cumOverlap = FALSE, 
+                        limits = NULL, yind = NULL, 
+                        t_unique = NULL, 
+                        id = NULL, 
+                        X1des = NULL, ind0 = NULL, xind = NULL, 
                         giveWarnings = TRUE){
   
   ## center X1 per column
-  X1 <- scale(X1, scale=FALSE)
+  X1 <- scale(X1, scale = FALSE)
   
   #print("check.ident")
   ## check whether (number of basis functions in Bs) < (number of relevant eigenfunctions of X1)
-  evls <- svd(X1, nu=0, nv=0)$d^2 # eigenvalues of centered fun. cov.
+  evls <- svd(X1, nu = 0, nv = 0)$d^2 # eigenvalues of centered fun. cov.
   evls[evls<0] <- 0
   maxK <- max(1, min(which((cumsum(evls)/sum(evls)) >= .995)))
   bsdim <- ncol(Bs) # number of basis functions in Bs
-  #if(maxK < bsdim){
-  #  warning("<k> (" , bsdim , ") larger than effective rank of <", xname, "> (", maxK, "). ", 
-  #          "Effect identifiable only through penalty.")
-  #}
-  ## <FIXME> automatically use less basis-functions in case of problems?
-  ## you would have to change args$knots accordingly
+  if(maxK <= 4)
+    warning("Very low effective rank of <", xname,
+            "> detected. ", maxK,
+            " largest eigenvalues of its covariance alone account for >99.5% of ",
+            "variability. <bfpc> might be a better choice here.")
+  if(maxK < bsdim){
+    warning("<k> (",  bsdim,") larger than effective rank of <", xname,
+            "> (", maxK, "). ",
+            "Model identifiable only through penalty.")
+  }
   
   ### compute condition number of Ds^t Ds
   ### <FIXME> possibel to use argument stand here?
   Ds <- (X1 * L) %*% Bs
-  DstDs <- crossprod(Ds)
-  e_DstDs <- try(eigen(DstDs))
-  e_DstDs$values <- pmax(0, e_DstDs$values) # set negative eigenvalues to 0
-  logCondDs <- log10(e_DstDs$values[1]) - log10(tail(e_DstDs$values, 1))
+  ## DstDs <- crossprod(Ds)
+  ## e_DstDs <- try(eigen(DstDs))
+  ## e_DstDs$values <- pmax(0, e_DstDs$values) # set negative eigenvalues to 0
+  ## logCondDs <- log10(e_DstDs$values[1]) - log10(tail(e_DstDs$values, 1))
+  evDs <- svd(Ds, nu = 0, nv = 0)$d^2  ## the same as eigenvalues of DstDs
+  logCondDs <- log10(max(evDs)) - log10(min(evDs))
   if(giveWarnings & logCondDs > 6 & is.null(limits)){
-    warning("condition number for <", xname, "> greater than 10^6. ", 
+    warning("Condition number for <", xname, "> greater than 10^6 (logCondDs = ", round(logCondDs, 2),"). ", 
             "Effect identifiable only through penalty.")
   }
   
   ### compute condition number of Ds^t Ds for subsections of Ds accoring to limits
   logCondDs_hist <- NULL
-
+  
   # look at condition number of Ds for all values of yind for historical effect
   # use X1des, as this is the marginal design matrix using the limits
   if(!is.null(limits)){ 
     ind0Bs <- ((!ind0)*1) %*% Bs # matrix to check for 0 columns
     ## implementation is suitable for common grid of t, maybe with some missings
     ## common grid is assumed if Y(t) is observed at least in 80% for each point 
-    if( all(table(yind)/max(id)>0.8) ){
+    if( length(yind) < nrow(X1des) | all(table(yind) / max(id) > 0.8) ){
       if(is.null(t_unique)) t_unique <- sort(unique(yind))
       logCondDs_hist <- rep(NA, length=length(t_unique))
       for(k in 1:length(t_unique)){
@@ -704,11 +722,13 @@ check_ident <- function(X1, L, Bs, K, xname, penalty,
         Ds_t <- Ds_t[ , apply(ind0Bs_t, 2, function(x) !all(abs(x)<10^-1) ), drop = FALSE ]
         
         if(dim(Ds_t)[2]!=0){ # for matrix with 0 columns does not make sense
-          DstDs_t <- crossprod(Ds_t)
-          e_DstDs_t <- try(eigen(DstDs_t))
-          e_DstDs_t$values <- pmax(0, e_DstDs_t$values) # set negative eigenvalues to 0
-          logCondDs_t <- log10(e_DstDs_t$values[1]) - log10(tail(e_DstDs_t$values, 1))
-          logCondDs_hist[k] <- logCondDs_t
+          ## DstDs_t <- crossprod(Ds_t)
+          ## e_DstDs_t <- try(eigen(DstDs_t))
+          ## e_DstDs_t$values <- pmax(0, e_DstDs_t$values) # set negative eigenvalues to 0
+          ## logCondDs_t <- log10(e_DstDs_t$values[1]) - log10(tail(e_DstDs_t$values, 1))
+          ## logCondDs_hist[k] <- logCondDs_t
+          evDs <- svd(Ds_t, nu = 0, nv = 0)$d^2  ## the same as eigenvalues of DstDs
+          logCondDs_hist[k] <- log10(max(evDs)) - log10(min(evDs))
         }
         ## matplot(xind, Bs, type="l", lwd=2, ylim=c(-2,2)); rug(xind); rug(yind, col=2, lwd=2)
         ## matplot(knots[1:ncol(Ds_t)], t(Ds_t), type="l", lwd=1, add=TRUE)
@@ -740,55 +760,93 @@ check_ident <- function(X1, L, Bs, K, xname, penalty,
         Ds_t <- Ds_t[ , apply(ind0Bs_t, 2, function(x) !all(abs(x)<10^-1) ), drop = FALSE] 
         
         if(dim(Ds_t)[2]!=0){ # for matrix with 0 columns does not make sense
-          DstDs_t <- crossprod(Ds_t)
-          e_DstDs_t <- try(eigen(DstDs_t))
-          e_DstDs_t$values <- pmax(0, e_DstDs_t$values) # set negative eigenvalues to 0
-          logCondDs_t <- log10(e_DstDs_t$values[1]) - log10(tail(e_DstDs_t$values, 1))
-          logCondDs_hist[k] <- logCondDs_t
+          ## DstDs_t <- crossprod(Ds_t)
+          ## e_DstDs_t <- try(eigen(DstDs_t))
+          ## e_DstDs_t$values <- pmax(0, e_DstDs_t$values) # set negative eigenvalues to 0
+          ## logCondDs_t <- log10(e_DstDs_t$values[1]) - log10(tail(e_DstDs_t$values, 1))
+          ## logCondDs_hist[k] <- logCondDs_t
+          evDs <- svd(Ds_t, nu = 0, nv = 0)$d^2  ## the same as eigenvalues of DstDs
+          logCondDs_hist[k] <- log10(max(evDs)) - log10(min(evDs))
         }
       }
       names(logCondDs_hist) <- round(t_unique[-length(t_unique)],2)
     }
     if(giveWarnings & any(logCondDs_hist > 6)){
-      # get the last entry of t, for which the condition number is >10^6
-      temp <- names(which.max(which(logCondDs_hist > 6)))
-      warning("condition number for <", xname, "> considering limits of historical effect ", 
-              "greater than 10^6, for some time-points up to ", temp, ". ",
+      # get the first and the last entry of t, for which the condition number is >10^6
+      tempL <- names(which.min(which(logCondDs_hist > 6)))
+      tempU <- names(which.max(which(logCondDs_hist > 6)))
+      warning("Condition number for <", xname, "> considering limits of historical effect ", 
+              "greater than 10^6, for time-points between ", tempL, " and ", tempU, ". ",
               "Effect in this region identifiable only through penalty.")
     }
   } ## end of computation of logCondDs_hist for historical effects
-
+  
   
   ## measure degree of overlap between the spans of ker(t(X1)) and W%*%Bs%*%ker(K)
-  ## overlap after Larsson and Villani 2001, Scheipl and Greven, 2014
+  ## ker = kernel = null space 
+  ## overlap measure like in Scheipl and Greven, 2016
+  ## based on distance measure of Larsson and Villani, 2001
   
-  tryNA <- function(expr){
-    ret <- try(expr, silent = TRUE)
-    if(any(class(ret)=="try-error")) return(NA)
-    return(ret)
-  }
-  tryNull <- function(expr){
-    ret <- try(expr, silent = TRUE)
-    if(any(class(ret)=="try-error")) return(matrix(NA, 0, 0))
-    return(ret)
-  }
+  #### code from pffr-ff.R to compute overlap for whole matrix
+  #   N.X <- Null(t(X1))
+  #   N.pen <- diag(L[1, ]) %*% Bs %*% Null(K)
+  #   if (any(c(NCOL(N.X) == 0, NCOL(N.pen) == 0))) {
+  #     nullOverlap <- 0
+  #   }
+  #   else {
+  #     nullOverlap <- trace_lv(svd(N.X)$u, svd(N.pen)$u)
+  #   }
   
-  ### get special measures for kernel overlap of WB_s(P_s) with subset of Xobs
-  ### overlap measure of Larsson and Villani 2001
-  ### as proposed by Scheipl and Greven 2015
   getOverlap <- function(subset, X1, L, Bs, K){
     # <FIXME> case that all observations are 0, kernel is everything -> kernel overlap
     if(all(X1[ , subset]==0)){
       return(5)
     }
-    KeXsub <- tryNull(Null(t(X1[ , subset])))
-    if(ncol(KeXsub)==0){ # no null space
-      return(0)
+    N.X <- Null(t(X1[ , subset, drop=FALSE]))
+    if(NCOL(N.X) != 0){
+      N.pen <- diag(L[1, subset]) %*% Bs[subset, , drop=FALSE] %*% Null(K)
+    }else N.pen <- 0
+    
+    if (any(c(NCOL(N.X) == 0, NCOL(N.pen) == 0))) {
+      nullOverlap <- 0
     }
-    KePen2sub <- tryNull(diag(L[1,subset]) %*% Bs[subset,] %*% Null(K))
-    overlapSub <- tryNA(trace_lv(svd(KeXsub)$u, svd(KePen2sub)$u))
-    return(overlapSub)
+    else {
+      nullOverlap <- trace_lv(svd(N.X)$u, svd(N.pen)$u)
+    }
+    return(nullOverlap)
   }
+  
+  #### check: 
+  #### nullOverlap == getOverlap(subset=1:ncol(X1), X1=X1, L=L, Bs=Bs, K=K)
+  
+  ####### old cumbersome code to compute the null space overlap
+  #   tryNA <- function(expr){
+  #     ret <- try(expr, silent = TRUE)
+  #     if(any(class(ret)=="try-error")) return(NA)
+  #     return(ret)
+  #   }
+  #   tryNull <- function(expr){
+  #     ret <- try(expr, silent = TRUE)
+  #     if(any(class(ret)=="try-error")) return(matrix(NA, 0, 0))
+  #     return(ret)
+  #   }
+  #   
+  #   ### get special measures for kernel overlap of WB_s(P_s) with subset of Xobs
+  #   ### overlap measure based on distance measure of Larsson and Villani 2001
+  #   ### as proposed by Scheipl and Greven 2016
+  #   getOverlap <- function(subset, X1, L, Bs, K){
+  #     # <FIXME> case that all observations are 0, kernel is everything -> kernel overlap
+  #     if(all(X1[ , subset]==0)){
+  #       return(5)
+  #     }
+  #     KeXsub <- tryNull(Null(t(X1[ , subset])))
+  #     if(ncol(KeXsub)==0){ # no null space
+  #       return(0)
+  #     }
+  #     KePen2sub <- tryNull(diag(L[1,subset]) %*% Bs[subset,] %*% Null(K))
+  #     overlapSub <- tryNA(trace_lv(svd(KeXsub)$u, svd(KePen2sub)$u))
+  #     return(overlapSub)
+  #   }
   
   cumOverlapKe <- NULL
   overlapKe <- NULL
@@ -815,9 +873,9 @@ check_ident <- function(X1, L, Bs, K, xname, penalty,
   #   plot( seq(min(t_unique), max(t_unique), l=10), cumOverlapKe, ylim=c(0,1))
   
   
-  ## sequential overlap for historical model with general integraion limits
+  ## sequential overlap for historical model with general integration limits
   if(!is.null(limits)){  
-
+    
     subs <- list()
     for(k in 1:length(t_unique)){
       subs[[k]] <- which(limits(s=xind, t=t_unique[k]))
@@ -837,8 +895,9 @@ check_ident <- function(X1, L, Bs, K, xname, penalty,
   
   if(giveWarnings & overlapKe >= 1){
     warning("Kernel overlap for <", xname, "> and the specified basis and penalty detected. ",
-            "Changing basis for X-direction to <penalty='pss'> to make model identifiable through penalty. ", 
-            "Coefficient surface estimate will be inherently unreliable.") 
+            "Changing basis for x-direction to <penalty='pss'> to make model identifiable through penalty. ", 
+            "Coefficient surface estimate will be inherently unreliable. ", 
+            "See Scheipl & Greven (2016) for details and alternatives.") 
     penalty <- "pss"
   }
   
@@ -898,6 +957,337 @@ penalty_pss <- function(K, difference, shrink){
   
   return(K)
 }
-  
 
+
+###################### expand.call() is taken from R package refund 0.1-15
+# Return call with all possible arguments
+#
+# Return a call in which all of the arguments which were supplied or have presets are specified by their 
+# full names and their supplied or default values.
+#
+# @param definition a function. See \code{\link[base]{match.call}}.
+# @param call an unevaluated call to the function specified by definition. See \code{\link[base]{match.call}}.
+# @param expand.dots logical. Should arguments matching ... in the call be included or 
+# left as a ... argument? See \code{\link[base]{match.call}}.
+# @return An object of mode "\code{\link[base]{call}}".
+# @author Fabian Scheipl
+# @seealso \code{\link[base]{match.call}}
+expand.call <- function(definition=NULL, call=sys.call(sys.parent(1)), expand.dots = TRUE){
+  call <- match.call(definition, call, expand.dots)
+  #given args:
+  ans <- as.list(call)
+  
+  #possible args:
+  frmls <- formals(safeDeparse(ans[[1]]))
+  #remove formal args with no presets:
+  frmls <- frmls[!sapply(frmls, is.symbol)]
+  
+  add <- which(!(names(frmls) %in% names(ans)))
+  return(as.call(c(ans, frmls[add])))
+}
+
+safeDeparse <- function(expr){
+  # turn an expression into a _single_ string, regardless of the expression's length
+  ret <- paste(deparse(expr), collapse="")
+  #rm whitespace
+  gsub("[[:space:]][[:space:]]+", " ", ret)
+}
+
+
+
+#' Function to Reweight Data
+#' 
+#' @param data a named list or data.frame.
+#' @param argvals character (vector); name(s) for entries in data giving 
+#' the index for observed grid points; must be supplied if \code{vars} is not supplied.
+#' @param vars character (vector); name(s) for entries in data, which
+#' are subsetted according to weights or index. Must be supplied if \code{argvals} is not supplied.
+#' @param longvars variables in long format, e.g., a response that is observed at curve specific grids. 
+#' @param weights vector of weights for observations. Must be supplied if \code{index} is not supplied.
+#' @param index vector of indices for observations. Must be supplied if \code{weights} is not supplied.
+#' @param idvars character (vector); index, which is needed to expand \code{vars} to be conform
+#' with the \code{hmatrix} structure when using \code{bhistx}-base-learners or to be conform with 
+#' variables in long format specified in \code{longvars}. 
+#' 
+#' @return A list with the reweighted or subsetted data.
+#' 
+#' @details \code{reweightData} indexes the rows of matrices and / or positions of vectors by using
+#' either the \code{index} or the \code{weights}-argument. To prevent the function from indexing
+#' the list entry / entries, which serve as time index for observed grid points of each trajectory of
+#' functional observations, the \code{argvals} argument (vector of character names for these list entries) 
+#' can be supplied. If \code{argvals} is not supplied, \code{vars} must be supplied and it is assumed that 
+#' \code{argvals} is equal to \code{names(data)[!names(data) \%in\% vars]}.
+#' 
+#' When using \code{weights}, a weight vector of length N must be supplied, where N is the number of observations.
+#' When using \code{index}, the vector must contain the index of each row as many times as it shall be included in the
+#' new data set.
+#' 
+#' @examples
+#' ## load data
+#' data("viscosity", package = "FDboost")
+#' interval <- "101"
+#' end <- which(viscosity$timeAll == as.numeric(interval))
+#' viscosity$vis <- log(viscosity$visAll[ , 1:end])
+#' viscosity$time <- viscosity$timeAll[1:end]
+#' 
+#' ## what does data look like
+#' str(viscosity)
+#' 
+#' ## do some reweighting
+#' # correct weights
+#' str(reweightData(viscosity, vars=c("vis", "T_C", "T_A", "rspeed", "mflow"), 
+#'     argvals = "time", weights = c(0, 32, 32, rep(0, 61))))
+#' 
+#' str(visNew <- reweightData(viscosity, vars=c("vis", "T_C", "T_A", "rspeed", "mflow"), 
+#'     argvals = "time", weights = c(0, 32, 32, rep(0, 61))))
+#' # check the result
+#' # visNew$vis[1:5, 1:5] ## image(visNew$vis)
+#' 
+#' # incorrect weights
+#' str(reweightData(viscosity, vars=c("vis", "T_C", "T_A", "rspeed", "mflow"), 
+#'     argvals = "time", weights = sample(1:64, replace = TRUE)), 1)
+#' 
+#' # supply meaningful index
+#' str(visNew <- reweightData(viscosity, vars = c("vis", "T_C", "T_A", "rspeed", "mflow"), 
+#'               argvals = "time", index = rep(1:32, each = 2)))
+#' # check the result
+#' # visNew$vis[1:5, 1:5]
+#' 
+#' # errors
+#' if(FALSE){
+#'    reweightData(viscosity, argvals = "")
+#'    reweightData(viscosity, argvals = "covThatDoesntExist", index = rep(1,64))
+#'    }
+#'    
+#' @author David Ruegamer, Sarah Brockhaus
+#' 
+#' @export 
+reweightData <- function(data, argvals, vars, longvars = NULL, 
+                         weights, index, idvars = NULL)
+{
+  
+  if(missing(argvals) & missing(vars)) 
+    stop("Either argvals or vars must be supplied.")
+  if(missing(weights) & missing(index)) 
+    stop("Either weights or index must be supplied.")
+  
+  # get names of data
+  nd <- names(data)
+  
+  # if(missing(idvars)) idvars <- NULL
+  
+  # drop not used entries if both argvals and vars are given
+  if(!missing(argvals) & !missing(vars)){
+    
+    data[nd[!nd %in% c(argvals, vars, longvars, idvars)]] <- NULL
+    nd <- names(data) # reset names
+    
+  }
+  
+  # define argvals or vars if missing exclusively
+  if(missing(argvals)) argvals <- nd[!nd %in% c(vars, idvars, longvars)]
+  if(missing(vars)) vars <- nd[!nd %in% c(argvals, idvars, longvars)]
+  
+  whichNot <- which(!c(argvals, vars, idvars, longvars) %in% nd)
+  
+  # check names
+  if(length(whichNot) != 0) 
+    stop(paste0("Could not find ", 
+                paste(c(argvals, vars, idvars, longvars)[whichNot], collapse = ", "),
+                " in data."))
+  
+  # check for hmatrix and delete in argvals or vars if present
+  whichHmat <- sapply(data[vars], function(x) "hmatrix" %in% class(x))
+  
+  # get dimensions of data
+  dimd <- lapply(data, dim)
+  isVec <- sapply(dimd, is.null)
+  
+  if(length(vars) == 1 && sum(whichHmat) == 1) 
+    n <- nrow(attr(data[[vars]],"x")) else{
+      
+      if(length(whichHmat) == 0){ 
+        
+        if(is.null(vars)){
+          
+          if(is.null(idvars)) stop("idvars must be given if vars is NULL.")
+          n <- n_variables <- length(unique(data[[idvars[1]]]))
+          
+        }else{
+          
+          n <- length(data[[vars[[1]]]])
+          n_variables <- sapply(data[vars], NROW)
+          
+        }
+        
+        }else{
+      
+          n <- NROW(data[[vars[!whichHmat][1]]])
+          n_variables <- sapply(data[vars][!whichHmat], NROW)
+      
+      }
+      
+      if(any(n_variables[1] != n_variables)) stop("variables imply different number of rows.")
+      
+    }
+  
+  if(!missing(weights) && length(weights) != n) 
+    stop("Length of weights and number of observations do not match!")
+  # if(!missing(weights) && sum(weights) != n)
+  #   warning("The resulting data will have more / less observations than the original data.")
+  
+  # transform weights in index and vice versa 
+  if(missing(index)) index <- rep(1:n, weights) else index <- sort(index)
+  ## computation of longvars needs weights 
+  if(missing(weights)) weights <- sapply(1:n, function(i) sum(index == i)) 
+  
+  is.wholenumber <- function(x, tol = .Machine$double.eps^0.5)  abs(x - round(x)) < tol
+  # is.wholenumber(x) # is TRUE
+  
+  if(!missing(weights) && any(!is.wholenumber(weights))) stop("weights can only contain integers.")
+  if(any(!is.wholenumber(index))) stop("index can only contain integers.")
+  
+  ## check that all idvars are equal
+  if(length(idvars)>1)
+    if(!all(sapply(data[idvars][-1],function(x)all.equal(data[idvars][[1]],x)=="TRUE")))
+      stop("All idvars must be identical.")
+  idvars_new <- NULL
+  
+  # get names of hmatrix variables
+  nhm <- vars[whichHmat]
+  # get all names of data items, which are neither a hmatrix 
+  # nor supplied via the idvars or longvars argument
+  remV <- !nd %in% c(nhm, idvars, longvars)  
+  # remove those
+  nd <- nd[remV] 
+  # the same for isVec
+  isVec <- isVec[remV]
+  
+  # if there is a hmatrix in the data, subsetting is done by reconstructing the hmatrix appropriately
+  if(any(whichHmat)){
+    
+    # construct a list for new hmatrices
+    newHatmats <- vector("list", length(nhm))
+    
+    # construct the new hmatrices
+    for(j in 1:length(nhm)){
+      
+      ## check that idvars == idvars[[1]] and match id-variables in all hmatrix-objects
+      if(!is.null(idvars) && !(all.equal(c(getId(data[[nhm[j]]])), c(data[[idvars[1]]])) == "TRUE")) 
+        stop("id variable in hmatrix object must be equal to idvars")
+      
+      ## number columns of X-matrix in hmatrix-object
+      nc <- ncol(attr(data[[nhm[j]]], "x"))
+      
+      tempHmat <- data[[nhm[j]]]
+      attrTemp <- attributes(tempHmat)
+      # save time and id variable of hmatrix-object as ordinary matrix
+      # otherwise [ on a hmatrix-object behaves unexpectedly 
+      tempMat <- cbind(tempHmat[,1], tempHmat[, 2])
+      resMat <- matrix(ncol=3)
+      for(t in unique(tempHmat[,1])){ 
+        
+        idInT <- index %in% tempMat[tempMat[,1] == t, 2]
+        # add rows for observations selected by index for time t
+        resMat <- rbind(resMat, matrix(c(rep(t, sum(idInT)), # for time points in hmatrix
+                                         index[idInT], # for id in hmatrix
+                                         (1:length(index))[idInT]), # for idvars 
+                                       ncol=3))
+        
+      }
+      resMat <- resMat[-1,] # drop first row with NAs
+      idvars_new <- resMat[,3]
+      resMat <- resMat[,-3]
+      resMat[,2] <- c(factor(resMat[,2])) # get id variable with values 1, 2, 3, ...
+      tempId <- (1:length(unique(resMat[,2])))[factor(resMat[,2])] # correct ordering 
+      newHatmats[[j]] <- hmatrix(time = resMat[,1], 
+                                 id = tempId, 
+                                 x = attrTemp$x[unique(index), , drop=FALSE], 
+                                 argvals = attrTemp$argvals, 
+                                 timeLab = attrTemp$timeLab, 
+                                 idLab = attrTemp$idLab, 
+                                 xLab = attrTemp$xLab, 
+                                 argvalsLab = attrTemp$argvalsLab)
+      if( any(class(data[[nhm[j]]]) == "AsIs") ){
+        newHatmats[[j]] <- I(newHatmats[[j]])
+      }
+    }
+    names(newHatmats) <- nhm
+    
+  }else{ # if there are no hmatrices, set the list and corresponding names to NULL
+    
+    newHatmats <- NULL
+    nhm <- NULL
+    
+  }
+  
+  temp_long <- NULL 
+  ## do the indexing for the variables in long format 
+  if(!is.null(longvars)){
+    if(any(idvars %in% longvars)) longvars <- longvars[!longvars %in% idvars]
+    weights_long <- weights[data[[idvars[1]]]]
+    index_long <- rep(1:length(weights_long), weights_long)
+    ## TODO do that within "recycle data"
+    temp_long <- lapply(longvars, function(nameWithoutDim) data[[nameWithoutDim]][index_long])
+    
+    #### create new id variable 1, 2, 3, ... that can be used for FDboost()
+    #### always generate idvars_new, even though it exists already because of a hmatrix object 
+    idvars_new_hmatrix <- NULL
+    if(!is.null(idvars_new)){
+      idvars_new_hmatrix <- idvars_new
+    }
+    
+    temp_idvars <- data[[idvars[1]]][index_long] # compute new id-variable
+    
+    ## gives equal numbers to repetitions of the same observation
+    ## idvars_new <- c(factor(temp_idvars))
+    
+    ## @David: hack to change the id, what is about the id in hmatrix?
+    ## gives different numbers to repetitions of the same observation
+    my_index_long <- index_long 
+    my_temp_idvars <- temp_idvars
+    i <- 1
+    # add 0.1^1 to duplicates, 0.1^1 + 0.1^2 = 0.11 to triplicates, ...
+    while(any(duplicated(my_index_long))){ # loop until no more duplicates in the data  
+      my_temp_idvars[duplicated(my_index_long)] <- my_temp_idvars[duplicated(my_index_long)] + 0.1^i
+      my_index_long[duplicated(my_index_long)] <- my_index_long[duplicated(my_index_long)] + 0.1^i
+      i <- i + 1
+    }
+    idvars_new <- c(factor(my_temp_idvars))
+    ## check wheterh id variable of hmatrix-object and id variable of long variables are equal
+    if(!is.null(idvars_new_hmatrix)){
+      if(!all(idvars_new == idvars_new_hmatrix)) 
+        warning("id variable generated for long variables and id variable of hmatrix-object do not match. ",
+                "Sort the long variables and the hmatrix-object by the time variable.")
+    }
+  }
+  
+  ## compute idvars_new in hmatrix-part or in longvars part, but add to data here 
+  # if idvars exist, subset accordingly;
+  # idvars has to be the same for all hmatrix-objects and response! 
+  if(!is.null(idvars)){
+    
+    ## only works for common observation grid of response
+    # idvars_new <- rep(1:length(index), nc) # index = c(1, 1, 2) -> 1, 2, 3
+    
+    for(ifr in idvars){
+      data[[ifr]] <- idvars_new
+    } 
+    ## data[[idvars]] <- getId(newHatmats[[j]])
+    argvals <- c(argvals, idvars)
+  }
+  
+  inAVs <- nd %in% argvals
+  
+  # recycle data
+  data <- c(lapply(nd[!isVec & !inAVs], function(nameWithDim) data[[nameWithDim]][index, , drop=FALSE]),
+            lapply(nd[isVec & !inAVs], function(nameWithoutDim) data[[nameWithoutDim]][index]), 
+            newHatmats, 
+            temp_long, 
+            data[argvals])
+  names(data) <- c(nd[!isVec & !inAVs], nd[isVec & !inAVs], nhm, longvars, argvals)
+  
+  return(drop(data))
+  
+}
 

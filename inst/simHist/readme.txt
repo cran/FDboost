@@ -1,8 +1,8 @@
 
 Code for simulation study presented in 
-Brockhaus S., Melcher M., Leisch F. and Greven S. (2015): 
+Brockhaus S., Melcher M., Leisch F. and Greven S. (2016): 
 Boosting Flexible Functional Regression Models with a High Number of Functional Historical Effects. 
-Submitted. 
+Statistics and Computing, accepted. 
 
 
 Use the run_...R files to run the different settings of the simulation study, 
@@ -15,7 +15,6 @@ Use the run_...R files to run the different settings of the simulation study,
 - run_pffr3.R try to fit the models with nuisance variables by FAMM (cannot fit the models, always gives error!)
 
 - run_PlotModels.R get plots of the data settings and the estimated coefficients for FAMM and FDboost 
-(cf. Web Appendix)
 
 The code in analyze_results.R can be used to get plots and tables using the results. 
 

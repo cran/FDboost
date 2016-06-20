@@ -98,7 +98,6 @@ print.FDboost <- function(x, ...) {
 #' @method predict FDboost
 #' @export
 # predict function: wrapper for predict.mboost()
-## <TODO> check which
 predict.FDboost <- function(object, newdata = NULL, which = NULL, toFDboost = TRUE, ...){
   
   stopifnot(any(class(object)=="FDboost")) 
@@ -145,7 +144,11 @@ predict.FDboost <- function(object, newdata = NULL, which = NULL, toFDboost = TR
     ## response observed on common grid / scalar response 
     if(!is.null(object$ydim)){
       # get the number of trajectories you want to predict
-      n <- NROW(newdata[[1]])  ## FIXME check that this is not the time-variable
+      n <- NROW(newdata[[1]])  
+      ## use the second variable if the first is the time variable 
+      if(is.list(newdata) && length(newdata) > 1){
+        if(names(newdata[1]) == nameyind) n <- NROW(newdata[[2]])
+      } 
       
       lengthYind <- length(newdata[[nameyind]])
       #assign(nameyind, newdata[[nameyind]])
@@ -246,6 +249,7 @@ predict.FDboost <- function(object, newdata = NULL, which = NULL, toFDboost = TR
       #if(!is.list(newdata)) newdata <- list(newdata)
       for(i in c(posBsignal, posBconc, posBhist)){ 
         xname <- object$baselearner[[i]]$get_names()[1] 
+        indname <- attr(object$baselearner[[i]]$get_data()[[xname]], "indname")  # does not work for %X% 
         ## if two ore more base-learners are connected by %X%, find the functional variable 
         if(grepl("%X", names(object$baselearner)[i])){
           form <- strsplit(object$baselearner[[i]]$get_call(), "%X")[[1]]
@@ -253,9 +257,14 @@ predict.FDboost <- function(object, newdata = NULL, which = NULL, toFDboost = TR
           form <- form[findFun]
           if(sum(findFun)!=1){stop("Can only predict effect of one functional effect in %X% or %Xc%.")}
           xname <- object$baselearner[[i]]$get_names()[findFun][1]
+          fun_call <- strsplit(names(object$baselearner)[[i]], "%.{1,3}%")[[1]][findFun]
+          if(substr(fun_call,1,1) == "\"") fun_call <- substr(fun_call, 2, nchar(fun_call)-1)
+          fun_call <- gsub(pattern = "\\\"", replacement = "", x = fun_call, fixed=TRUE)
+          fun_call <- gsub(pattern = "\\", replacement = "", x = fun_call, fixed=TRUE)
+          indname <- all.vars(formula(paste("Y~", fun_call)))[3] # variabes are Y, x, s, (time)
         }
-        # print(xname)
-        indname <- attr(object$baselearner[[i]]$get_data()[[xname]], "indname") 
+        # print(xname); print(indname)
+
         #indname_all <- c(indname_all, indname)
         if(i %in% c(posBhist, posBconc)){
           indnameY <- attr(object$baselearner[[i]]$get_data()[[xname]], "indnameY")
@@ -312,7 +321,7 @@ predict.FDboost <- function(object, newdata = NULL, which = NULL, toFDboost = TR
     # offset of length>1 is not used in prediction, 
     # important when offset=NULL in FDboost() but not in mboost()
     muffleWarning1 <- function(w){
-      if( any( grepl( "Offset not used for prediction when", w) ) ) 
+      if( any( grepl( "User-specified offset is not a scalar, thus offset not used for prediction when", w) ) )
         invokeRestart( "muffleWarning" )  
     }
 
@@ -608,6 +617,9 @@ coef.FDboost <- function(object, raw = FALSE, which = NULL,
       
       makeDataGrid <- function(trm){
         
+        myargsHist <- NULL
+        x <- y <- z <- NULL
+        
         # variable for number of levels in bl2 for an effect bl1 %X% bl2
         numberLevels <- 1  
 
@@ -615,20 +627,38 @@ coef.FDboost <- function(object, raw = FALSE, which = NULL,
         if(grepl("bhistx", trm$get_call())){
           ng <- n2
           # get hmatrix-object
-          temp <- trm$model.frame()[[1]]
-          svals <- getArgvals(temp)
-          svals <- seq(min(svals), max(svals),length=ng)
-          tvals <- getTime(temp)
-          tvals <- seq(min(tvals), max(tvals),length=ng)
-          tvals <- rep(tvals, each=ng)
+          position_hmatrix <- which(sapply(trm$model.frame(), is.hmatrix))
+          object_hmatrix <- trm$model.frame()[[position_hmatrix]]
+          svals <- getArgvals(object_hmatrix)
+          svals <- seq(min(svals), max(svals), length = ng)
+          tvals <- getTime(object_hmatrix)
+          tvals <- seq(min(tvals), max(tvals), length = ng)
+          tvals <- rep(tvals, each = ng)
 
           if( grepl("%X", trm$get_call()) ){
-            if(length(trm$get_names()) == 2){ # one %X%
-              myargsHist <- environment(environment(trm$dpp)$Xfun)$args1
+            split_bl <- strsplit(trm$get_call(), split = "%.{1,3}%")[[1]]
+            ## save the position of bhistx() 
+            position_bhistx <- which(grepl("bhistx", split_bl))
+            
+            if(length(split_bl) == 2){ # one %X%
+              if(position_bhistx == 1){
+                myargsHist <- environment(environment(trm$dpp)$Xfun)$args1
+              }else{
+                myargsHist <- environment(environment(trm$dpp)$Xfun)$args2
+              }
             }else{  # two ore more %X% (currently only works for two)
-              myargsHist <- environment(environment(environment(
-                environment(trm$dpp)$Xfun)$bl1$dpp)$Xfun)$args1
-              if(is.null(myargsHist)) myargsHist <- environment(environment(trm$dpp)$Xfun)$args1
+              if(position_bhistx == 1){
+                myargsHist <- environment(environment(environment(
+                  environment(trm$dpp)$Xfun)$bl1$dpp)$Xfun)$args1
+                if(is.null(myargsHist)) myargsHist <- environment(environment(trm$dpp)$Xfun)$args1
+              }else{
+                if(position_bhistx == 2){
+                  myargsHist <- environment(environment(environment(
+                    environment(trm$dpp)$Xfun)$bl1$dpp)$Xfun)$args2
+                }else{ ## position_bhistx == 3
+                  myargsHist <- environment(environment(environment(trm$dpp)$Xfun)$bl2$dpp)$args
+                }
+              }
             }
           }else{
             myargsHist <- environment(trm$dpp)$args
@@ -647,19 +677,24 @@ coef.FDboost <- function(object, raw = FALSE, which = NULL,
           ## generate a dummy functional variable I / integration weights
           dummyX <- I(diag(ng)) / intFun(diag(ng), svals)
           
-          temph <- hmatrix(time=tvals, id=rep(1:ng, ng), x=dummyX, argvals=svals)
+          temph <- hmatrix(time = tvals, id = rep(1:ng, ng), x = dummyX, argvals = svals)
           
-          d <- data.frame(z=I(temph))
-          names(d) <- trm$get_names()[1]
-          d[[ getTimeLab(temp) ]] <- tvals
+          d <- data.frame(z = I(temph))
+          names(d) <- trm$get_names()[position_hmatrix]
+          d[[ getTimeLab(object_hmatrix) ]] <- tvals
           
-          attr(d, "varnms") <- c(getArgvalsLab(temp), getTimeLab(temp))
-          attr(d, "xm") <- seq(min(svals), max(svals),length=ng)
-          attr(d, "ym") <- seq(min(tvals), max(tvals),length=ng)
+          attr(d, "varnms") <- c(getArgvalsLab(object_hmatrix), getTimeLab(object_hmatrix))
+          attr(d, "xm") <- seq(min(svals), max(svals), length = ng)
+          attr(d, "ym") <- seq(min(tvals), max(tvals), length = ng)
           
           ## for a tensor product term: add the scalar factors to d
           if( grepl("%X", trm$get_call()) ){
-            z <- trm$model.frame()[[trm$get_names()[2]]]
+            if(position_hmatrix == 1){  
+              position_z <- 2
+            }else{ 
+              position_z <- 1    
+            }
+            z <- trm$model.frame()[[trm$get_names()[position_z]]]
             if(is.factor(z)) {
               numberLevels <- length(unique(unique(z)))  
               zg <- sort(unique(z))[1] #sort(unique(z)) # use first possibility
@@ -667,14 +702,16 @@ coef.FDboost <- function(object, raw = FALSE, which = NULL,
               zg <- 1 # use z=1 as neutral possibility
             } 
             
-            d[[ trm$get_names()[2] ]] <- zg
-            attr(d, "varnms") <- c(getArgvalsLab(temp), getTimeLab(temp), trm$get_names()[2])
+            d[[ trm$get_names()[position_z] ]] <- zg
+            attr(d, "varnms") <- c(getArgvalsLab(object_hmatrix), 
+                                   getTimeLab(object_hmatrix), trm$get_names()[position_z])
             attr(d, "zm") <- zg
             
             ## add second factor variable to the dataset if necessary, because of two %X%
             z1 <- NULL
             if(length(trm$get_names()) > 2){
-              z1 <- trm$model.frame()[[trm$get_names()[3]]]
+              position_z1 <- (1:3)[!(1:3) %in% c(position_hmatrix, position_z)] 
+              z1 <- trm$model.frame()[[trm$get_names()[position_z1]]]
               if(is.factor(z1)) {
                 ## multiply the number of levels of both factors 
                 numberLevels <- numberLevels * length(unique(unique(z1)))  
@@ -683,35 +720,35 @@ coef.FDboost <- function(object, raw = FALSE, which = NULL,
                 z1g <- 1 # use z1=1 as neutral possibility
               } 
               
-              d[[ trm$get_names()[3] ]] <- z1g
-              attr(d, "varnms") <- c(getArgvalsLab(temp), getTimeLab(temp), 
-                                     trm$get_names()[2], trm$get_names()[3])
+              d[[ trm$get_names()[position_z1] ]] <- z1g
+              attr(d, "varnms") <- c(getArgvalsLab(object_hmatrix), getTimeLab(object_hmatrix), 
+                                     trm$get_names()[position_z], trm$get_names()[position_z1])
               attr(d, "z1m") <- z1g
             }
             
             ## make a list of data-frames with all combinations
-            if(numberLevels > 1){
+            if(numberLevels > 1){ 
               
               dlist <- vector("list", numberLevels)
               zlevels <- sort(unique(z))  ##  sort(unique(z1))
-              
+
               ## loop over all factor combinations 
               if(is.null(z1)){  # one %X%'
                 dlist[[1]] <- d
                 for(j in 1:numberLevels){
-                  d[[ trm$get_names()[2] ]] <- zlevels[j] # use j-th factor level
-                  attr(d, "add_main") <- paste0(trm$get_names()[2], "=", zlevels[j])
+                  d[[ trm$get_names()[position_z] ]] <- zlevels[j] # use j-th factor level
+                  attr(d, "add_main") <- paste0(trm$get_names()[position_z], "=", zlevels[j])
                   dlist[[j]] <- d
                 }
               }else{ # two %X%
                 z1levels <- sort(unique(z1))
                 temp_d <- 1
                 for(j in 1:length(zlevels)){ # loop over z 
-                  d[[ trm$get_names()[2] ]] <- zlevels[j] # use j-th factor level of z
+                  d[[ trm$get_names()[position_z] ]] <- zlevels[j] # use j-th factor level of z
                   for(k in 1:length(z1levels)){ # loop over z1
-                    d[[ trm$get_names()[3] ]] <- z1levels[k] # use k-th factor level of z1
-                    attr(d, "add_main") <- paste0(trm$get_names()[2], "=", zlevels[j], ", ", 
-                                                 trm$get_names()[3], "=", z1levels[k])
+                    d[[ trm$get_names()[position_z1] ]] <- z1levels[k] # use k-th factor level of z1
+                    attr(d, "add_main") <- paste0(trm$get_names()[position_z], "=", zlevels[j], ", ", 
+                                                 trm$get_names()[position_z1], "=", z1levels[k])
                     dlist[[temp_d]] <- d 
                     temp_d <- temp_d + 1
                   }
@@ -726,113 +763,203 @@ coef.FDboost <- function(object, raw = FALSE, which = NULL,
             #attr(d, "stand") <- stand
             
           }
+          
+          attr(d, "myargsHist") <- myargsHist
 
           ## test <- predict(object, newdata=d, which=2)
           return(d)
         }
         
-        ### <TODO> delete attr(d, "xm") <- xg and change code accordingly
+        ################################################
+        ### look at cases without bhistx()
         varnms <- trm$get_names()
         yListPlace <- NULL
         zListPlace <- NULL
+        
+        if(trm$dim == 1) ng <- n1
+        if(trm$dim == 2) ng <- n2
+        if(trm$dim == 3) ng <- n3
+        if(trm$dim > 3) ng <- n4
 
         # generate grid of values in range of original data
-        if(trm$dim==1){
-          ng <- n1
+        if(trm$dim == 1){
           varnms <- varnms[!varnms %in% c("ONEx", "ONEtime")] 
           # Extra setup of dataframe in the case of a functional covariate
-          if(grepl("bsignal", trm$get_call()) | grepl("bfpc", trm$get_call()) | grepl("bconcurrent", trm$get_call())){
+          if(!is.null(attr(trm$model.frame()[[1]], "signalIndex"))){ # functional covariate
             x <- attr(trm$model.frame()[[1]], "signalIndex")
-            xg <- seq(min(x), max(x),length=ng) 
+            xg <- seq(min(x), max(x),length = ng) 
             varnms[1] <- attr(trm$model.frame()[[1]], "indname")            
-          }else{
-            # if(length(varnms) == 0)
+          }else{ # scalar covariate
             x <- trm$model.frame()[[varnms]]
             xg <- if(is.factor(x)) {
               sort(unique(x))
-            } else seq(min(x), max(x), length=ng)
+            } else seq(min(x), max(x), length = ng)
           }
           d <- list(xg)  # data.fame
           names(d) <- varnms
           attr(d, "xm") <- xg
-          attr(d, "xname") <- varnms
+          attr(d, "varnms") <- varnms
           # For effect constant over index of response: add dummy-index so that length in clear
           if(attr(object$yind, "nameyind") != varnms){
-            d[[attr(object$yind, "nameyind")]] <- seq(min(object$yind), max(object$yind),length=ng) 
+            d[[attr(object$yind, "nameyind")]] <- seq(min(object$yind), max(object$yind), length=ng) 
           }           
         }        
         
         if(trm$dim > 1){          
-          ng <- ifelse(trm$dim==2, n2, n3)          
+          #ng <- ifelse(trm$dim == 2, n2, n3)          
           
           ### get variables for x, y and eventually z direction
-
-          # Extra setup of dataframe in the case of a functional covariate
-          if(grepl("bsignal", trm$get_call()) | grepl("bfpc", trm$get_call()) | 
-             grepl("bhist", trm$get_call())){
+          
+          ## x (first variable)
+          if(!is.null(attr(trm$model.frame()[[1]], "signalIndex"))){ # functional covariate
             x <- attr(trm$model.frame()[[1]], "signalIndex")
-            xg <- seq(min(x), max(x),length=ng) 
-            varnms[1] <- attr(trm$model.frame()[[1]], "indname")   
+            xg <- seq(min(x), max(x), length = ng) 
+            varnms[1] <- attr(trm$model.frame()[[1]], "indname") 
           }else{ # scalar covariate
             x <- trm$model.frame()[[1]]
             xg <- if(is.factor(x)) {
               sort(unique(x))
-            } else seq(min(x), max(x),length=ng)            
+            } else seq(min(x), max(x),length = ng)
           }
-          yListPlace <- 2
-          if(grepl("by", trm$get_call()) | 
-             ( !any(class(object)=="FDboostLong") &&  grepl("%X", trm$get_call())) ){
-            yListPlace <- 3
-          }
-          if(!grepl("bhist", trm$get_call())){
-            y <- trm$model.frame()[[yListPlace]] # index of response or second scalar covariate
-          }else{
-            y <- object$yind  ## attr(trm$model.frame()[[1]], "indexY")
-            varnms[2] <- attr(object$yind, "nameyind") ## attr(trm$model.frame()[[1]], "indnameY")
-            if(varnms[1]==varnms[2]) varnms[1] <- paste(varnms[2], "_cov", sep="")
-            if(attr(object$yind, "nameyind") != attr(trm$model.frame()[[1]], "indnameY")){
-              stop("coef.FDboost works for bhist only if time variable is the same in timeformula and bhist.")
-            }
-          }
-          yg <- if(is.factor(y)) {
-            sort(unique(y))
-          } else seq(min(y), max(y),length=ng)
-          if(length(varnms)==2){
-            d <- list(xg, yg)  # data.frame
-            attr(d, "xm") <- xg
-            attr(d, "ym") <- yg    
-          } else {
-            zListPlace <- ifelse(yListPlace == 2, 3, 2)
-            z <- trm$model.frame()[[zListPlace]]
-            zg <- if(is.factor(z)) {
-              sort(unique(z))
-            }else{
-              if(grepl("by", trm$get_call())){ 1 }else{ seq(min(z), max(z), length=n4) }
-            } 
-            d <- list(xg, yg, zg)  # data.frame
-            ## special case of factor by-variable 
-            #if(grepl("by", trm$get_call()) && grepl("bols", trm$get_call()) && is.factor(z)){
-            #  d <- list(rep(xg, length(yg)), rep(yg, each=length(xg)), zg)
-            #}
-            # special case of factor by-variable 
-            if(grepl("by", trm$get_call()) && grepl("bols", trm$get_call()) && is.factor(z)){
-              d <- list(rep(xg, length(zg)), yg, rep(zg, each=length(zg)))
+          
+          if(trm$dim == 2){
+            
+            if("FDboostScalar" %in% class(object)){ ### scalar response 
+              position_time <- 2
+              y <- yg <- 1
+              varnms <- c(varnms[1], "ONEtime", varnms[2])
+              if(!is.null(attr(trm$model.frame()[[2]], "signalIndex"))){ # functional covariate
+                z <- attr(trm$model.frame()[[2]], "signalIndex")
+                zg <- seq(min(z), max(z), length = ng) 
+                varnms[2] <- attr(trm$model.frame()[[2]], "indname") 
+              }else{ # scalar covariate
+                z <- trm$model.frame()[[2]]
+                zg <- if(is.factor(z)) {
+                  sort(unique(z))
+                } else seq(min(z), max(z), length = ng)
+              }
+
+              d <- list(xg, yg, zg)  # data.frame
+              attr(d, "xm") <- xg
+              attr(d, "ym") <- yg
+              attr(d, "zg") <- zg
+              attr(d, "varnms") <- varnms
+              
+            }else{ ### functional response 
+              
+              ## not bhist 
+              if( ! grepl("bhist", trm$get_call()) ){
+                
+                ## y (time variable, usually second variable)
+                ## important in case of by-variables, then yind is third variable 
+                position_time <- which(varnms == attr(object$yind, "nameyind"))
+                y <- trm$model.frame()[[position_time]]
+                yg <- seq(min(y), max(y), length = ng) 
+                
+                
+                if(length(varnms) > 2){
+                  
+                  ## by-variable in base-learner
+                  position_z <- (1:3)[!(1:3) %in% c(1, position_time)]
+                  z <- trm$model.frame()[[position_z]]
+                  zg <- if(is.factor(z)) {
+                    sort(unique(z))[1]
+                  }else{
+                    1 
+                    # if(grepl("by", trm$get_call())){ 1 }else{ seq(min(z), max(z), length = n4) }
+                  } 
+                  varnms <- varnms[c(1, position_time, position_z)]
+                  
+                  d <- list(xg, yg, zg)  # data.frame
+                  attr(d, "xm") <- xg
+                  attr(d, "ym") <- yg
+                  attr(d, "zm") <- zg
+                  
+                }else{
+                  varnms <- varnms[c(1, position_time)]
+                  
+                  d <- list(xg, yg)  # data.frame
+                  attr(d, "xm") <- xg
+                  attr(d, "ym") <- yg
+                }
+                
+              }else{ ## special case: bhist in base-learner
+                
+                y <- object$yind  ## attr(trm$model.frame()[[1]], "indexY")
+                yg <- seq(min(y), max(y), length = ng)
+                # varnms[2] <- attr(object$yind, "nameyind") ## attr(trm$model.frame()[[1]], "indnameY")
+                # if(varnms[1]==varnms[2]) varnms[1] <- paste(varnms[2], "_cov", sep="")
+                if(attr(object$yind, "nameyind") != attr(trm$model.frame()[[1]], "indnameY")){
+                  stop("coef.FDboost works for bhist only if time variable is the same in timeformula and bhist.")
+                }
+                
+                varnms <- c(varnms[1], attr(object$yind, "nameyind"))
+                
+                d <- list(xg, yg)  # data.frame
+                attr(d, "xm") <- xg
+                attr(d, "ym") <- yg
+                
+                myargsHist <- environment(trm$dpp)$args
+                attr(d, "myargsHist") <- myargsHist
+                
+              }
+              
             }
             
+
+            
+          }else{ # else for if(trm$dim == 2)
+            
+            ## plot.FDboost expects that y-variable is yind-varible (time of response)
+            ## change econd and third variable - the third variable is usually yind 
+            which(varnms == attr(object$yind, "nameyind"))
+
+            ## y (third variable, usually time)
+            if(!is.null(attr(trm$model.frame()[[3]], "signalIndex"))){ # functional covariate
+              y <- attr(trm$model.frame()[[3]], "signalIndex")
+              yg <- seq(min(y), max(y), length = ng) 
+              varnms[3] <- attr(trm$model.frame()[[3]], "indname") 
+            }else{ # scalar covariate
+              y <- trm$model.frame()[[3]]
+              yg <- if(is.factor(y)) {
+                sort(unique(y))
+              } else seq(min(y), max(y),length = ng)
+            }
+            
+            ## z (second variable) 
+            if(!is.null(attr(trm$model.frame()[[2]], "signalIndex"))){ # functional covariate
+              z <- attr(trm$model.frame()[[2]], "signalIndex")
+              zg <- seq(min(z), max(z), length = ng) 
+              varnms[2] <- attr(trm$model.frame()[[2]], "indname") 
+            }else{ # scalar covariate
+              z <- trm$model.frame()[[2]]
+              zg <- if(is.factor(z)) {
+                sort(unique(z))
+              } else seq(min(z), max(z),length = ng)
+            }
+            
+            d <- list(xg, yg, zg)
             attr(d, "xm") <- d[[1]]
             attr(d, "ym") <- d[[2]]
             attr(d, "zm") <- d[[3]]
+            varnms <- varnms[c(1,3,2)]
           }
-          names(d) <- varnms[c(1, yListPlace, zListPlace)] # colnames(d) <- varnms
-          attr(d, "varnms") <- varnms[c(1, yListPlace, zListPlace)] 
+          
+          names(d) <- varnms
+          attr(d, "varnms") <- varnms 
+          
         }
         
         
         ## add dummy signal to data for bsignal()
         if(grepl("bsignal", trm$get_call()) | grepl("bfpc", trm$get_call()) ){
-          d[[ trm$get_names()[1] ]] <- I(diag(ng)/integrationWeights(diag(ng), d[[varnms[1]]] ))
+          
+          position_signal <- which(sapply(trm$model.frame(), 
+                                          function(x) !is.null(attr(x, "signalIndex")) ))
+          
+          d[[ trm$get_names()[position_signal] ]] <- I(diag(ng) / 
+                                                         integrationWeights(diag(ng), d[[position_signal]] ))
         }
-        
         ## <FIXME> is this above dummy-matrix correct for bfpc?
 
         ## add dummy signal to data for bhist()
@@ -843,14 +970,10 @@ coef.FDboost <- function(object, raw = FALSE, which = NULL,
         if(grepl("bhist", trm$get_call()) ){
           ## temp <- I(diag(ng)/integrationWeightsLeft(diag(ng), d[[varnms[1]]]))
           ## use intFun() of the bl to compute the integration weights
-          temp <- environment(trm$dpp)$args$intFun(diag(ng), d[[varnms[1]]])
-          ##if(environment(trm$dpp)$args$stand=="transform"){
-          ##  xindStand <- (d[[varnms[1]]] - min(d[[varnms[1]]])) / (max(d[[varnms[1]]]) - min(d[[varnms[1]]]))
-          ##  temp <- environment(trm$dpp)$args$intFun(diag(ng), xindStand)
-          ##}
+          temp <- environment(trm$dpp)$args$intFun(diag(ng), d[[attr(object$yind, "nameyind")]])
           d[[attr(trm$model.frame()[[1]], "xname")]] <- I(diag(ng)/temp)
-          limits <- environment(trm$dpp)$args$limits
-          stand <- environment(trm$dpp)$args$stand
+          limits <- myargsHist$limits
+          stand <- myargsHist$stand
           attr(d, "limits") <- limits
           attr(d, "stand") <- stand
         }
@@ -866,8 +989,8 @@ coef.FDboost <- function(object, raw = FALSE, which = NULL,
         } 
         
         # set time-variable to 1, if response is a scalar
-        if(length(object$yind)==1){
-          if( all(attr(d, "zm") == d[[attr(object$yind, "nameyind")]]) ){
+        if(length(object$yind) == 1){
+          if( !is.null(attr(d, "zm")) && all(attr(d, "zm") == d[[attr(object$yind, "nameyind")]]) ){
             attr(d, "zm") <- 1
           }
           d[[attr(object$yind, "nameyind")]] <- 1 
@@ -880,7 +1003,7 @@ coef.FDboost <- function(object, raw = FALSE, which = NULL,
 
           ## if %X% was used in combination with factor variables make a list of data-frames
           if(is.factor(x) & is.factor(z)){ ## both variables are factors 
-            numberLevels <-  nlevels(x) * nlevels(z)
+            numberLevels <- nlevels(x) * nlevels(z)
             xlevels <- sort(unique(x))
             zlevels <- sort(unique(z))
             
@@ -893,19 +1016,19 @@ coef.FDboost <- function(object, raw = FALSE, which = NULL,
                 attr(d, "xm") <- d[[1]]
                 attr(d, "zm") <- d[[3]]
                 attr(d, "add_main") <- paste0(names(d)[1], "=", xlevels[j], ", ",  
-                                              names(d)[3], "=", zlevels[j])
+                                              names(d)[3], "=", zlevels[k])
                 dlist[[temp_d]] <- d 
                 temp_d <- temp_d + 1
               }
             }
           }else{
-            if(is.factor(z)){ ## only first variable is a factor
+            if(is.factor(z)){ ## only second variable is a factor
               numberLevels <- nlevels(z)
               zlevels <- sort(unique(z))
               dlist <- vector("list", numberLevels)
               for(j in 1:length(zlevels)){ # loop over z 
                 d[[3]] <- rep(zlevels[j], length(d[[1]])) # use j-th factor level of z
-                attr(d, "xm") <- d[[3]]
+                attr(d, "zm") <- d[[3]]
                 attr(d, "add_main") <- paste0(names(d)[3], "=", zlevels[j])
                 dlist[[j]] <- d 
               }
@@ -934,8 +1057,8 @@ coef.FDboost <- function(object, raw = FALSE, which = NULL,
                 }
               } 
             }
-            
           }
+          
           if(!is.null(dlist)) d <- dlist
           attr(d, "numberLevels") <- numberLevels
         }  ## end if(grepl("%X", trm$get_call()))
@@ -943,9 +1066,9 @@ coef.FDboost <- function(object, raw = FALSE, which = NULL,
         return(d)
       } ## end of function makeDataGrid()
       
-      getP <- function(trm, d){
+      getP <- function(trm, d, myargs = NULL){
         #return an object similar to what plot.mgcv.smooth etc. returns 
-        if(trm$dim==1){
+        if(trm$dim == 1){
           predHelp <- predict(object, which=i, newdata=d)
           if(!is.matrix(predHelp)){ 
             X <- predHelp
@@ -957,11 +1080,11 @@ coef.FDboost <- function(object, raw = FALSE, which = NULL,
               predHelp[1,] # smooth intercept/ concurrent effect                
             }            
           } 
-          P <- list(x=attr(d, "xm"), xlab=attr(d, "xname"), xlim=safeRange(attr(d, "xm")))
+          P <- list(x=attr(d, "xm"), xlab=attr(d, "varnms")[1], xlim=safeRange(attr(d, "xm")))
           ## trm$dim > 1
         }else{
           varnms <- attr(d, "varnms")
-          if(trm$dim==2){
+          if(trm$dim == 2){
             X <- predict(object, newdata=d, which=i)
             attr(X, "offset") <- NULL
             vecStand <- NULL
@@ -969,20 +1092,8 @@ coef.FDboost <- function(object, raw = FALSE, which = NULL,
             ## for bhist(), multiply with standardisation weights if necessary
             ## you need the args$vecStand from the prediction of X, constructed here
             if(grepl("bhist", trm$get_call())){
+              myargsHist <- myargs  ## use the args found in makeDataGrid() 
 
-              ## get the args of bhist/bhistx, environment depends on use of %X%
-              if( grepl("%X", trm$get_call()) ){
-                if(length(trm$get_names()) == 2){ # one %X%
-                  myargsHist <- environment(environment(trm$dpp)$Xfun)$args1
-                }else{  # two ore more %X% (currently only works for two)
-                  myargsHist <- environment(environment(environment(
-                    environment(trm$dpp)$Xfun)$bl1$dpp)$Xfun)$args1
-                  if(is.null(myargsHist)) myargsHist <- environment(environment(trm$dpp)$Xfun)$args1
-                }
-              }else{ # just bhist() or bhistx() without %X%
-                myargsHist <- environment(trm$dpp)$args
-              }
-              
               ## this should only occur for more than two %X%
               if(is.null(myargsHist$stand)){
                 warning("No standardization is used, i.e. stand = 'no',", 
@@ -991,7 +1102,9 @@ coef.FDboost <- function(object, raw = FALSE, which = NULL,
                         "No limits are used.")
                 myargsHist$stand <- "no"
                 myargsHist$intFun <- integrationWeightsLeft
-                myargsHist$limits <- function(s, t) TRUE
+                myargsHist$limits <- function(s, t){
+                  (s <= t) | (t <=s)
+                } 
               }
               
               if(myargsHist$stand %in% c("length","time")){
@@ -1126,15 +1239,16 @@ coef.FDboost <- function(object, raw = FALSE, which = NULL,
         } 
         return(d)
       }
-
+      
       if( !is.null(attr(d, "numberLevels")) && attr(d, "numberLevels") > 1){
         if( grepl("bhistx", trm$get_call()) ) trm$dim <- 2
         ## get smooth coefficient estimates for several factor levels
-        P <- lapply(d, getP, trm=trm) 
+        # P <- getP(d[[1]], trm = trm, myargs = attr(d, "myargsHist"))
+        P <- lapply(d, getP, trm = trm, myargs = attr(d, "myargsHist")) 
         P$numberLevels <- attr(d, "numberLevels") 
       }else{
         ## get smooth coefficient estimates
-        P <- getP(trm, d)
+        P <- getP(trm, d, myargs = attr(d, "myargsHist"))
       }
         
       # get proper labeling
@@ -1148,10 +1262,10 @@ coef.FDboost <- function(object, raw = FALSE, which = NULL,
     shortnames <- function(x){
       if(substr(x,1,1)=="\"") x <- substr(x, 2, nchar(x)-1)
 
-      ## split at expressions %.% with 1 or 2 characters between % and %
-      xpart <- unlist(strsplit(x, split = "%.{1,2}%"))
+      ## split at expressions %.% with 1 to 3 characters between % and %
+      xpart <- unlist(strsplit(x, split = "%.{1,3}%"))
       ## find the expressions at which the split is done 
-      operator <- gregexpr(pattern = "%.{1,2}%", text = x)[[1]]
+      operator <- gregexpr(pattern = "%.{1,3}%", text = x)[[1]]
       operator <- sapply(1:length(operator), 
                       function(i) substr(x, operator[i], operator[i] + attr(operator, "match.length")[i] -1 ) )
       
@@ -1421,35 +1535,88 @@ plot.FDboost <- function(x, raw = FALSE, rug = TRUE, which = NULL,
                                      ylab="coef", type="l"))          
           }
           
-          if(rug & !is.factor(x=trm$x)){
+          if(rug & !is.factor(x = trm$x)){
             if(grepl("bconcurrent", trm$main) | grepl("bsignal", trm$main) | grepl("bfpc", trm$main) ){
               rug(attr(bl_data[[i]][[1]], "signalIndex"), ticksize = 0.02)
-            }else ifelse(length(unique(bl_data[[i]][[1]]))!=1,
-                         rug(bl_data[[i]][[1]], ticksize = 0.02),
-                         rug(bl_data[[i]][[2]], ticksize = 0.02))
+            }else rug(bl_data[[i]][[trm$xlab]], ticksize = 0.02)
           } 
         } 
         
         # plot with factor variable
         if( (!grepl("bhistx", trm$main)) && trm$dim==2 &&
            ((is.factor(trm$x) | is.factor(trm$y)) | is.factor(trm$z)) ){
-          if(is.factor(trm$y)){ # effect with by-variable (by-variable is factor)
-            plotWithArgs(matplot, args=argsMatplot, 
-                         myargs=list( x=trm$z, y=t(trm$value), xlab=trm$ylab, main=trm$main, 
-                                      ylab="coef", type="l", col=as.numeric(trm$y) ) )
-            if(rug){
-              #rug(bl_data[[i]][[3]], ticksize = 0.02) 
-              rug(x$yind, ticksize = 0.02)
+          
+          ## plot for the special case where factor is plotted in several plots 
+          if(!is.null(trm$add_main)){
+
+            ## order the terms such that they are plotted with x and y 
+            if(is.factor(trm$x) && !is.factor(trm$z)){
+              trm_sort <- trm
+              trm$x <- trm_sort$z
+              trm$xlab <- trm_sort$zlab
+              trm$xlim <- trm_sort$zlim
+              trm$z <- trm_sort$x
+              trm$zlab <- trm_sort$xlab
+              trm$zlim <- trm_sort$xlim
             }
-          }else{ # effect of factor variable
-            plotWithArgs(matplot, args=argsMatplot, 
-                         myargs=list(x=trm$y, y=t(trm$value), xlab=trm$ylab, main=trm$main, 
-                                     ylab="coef", type="l"))
-            if(rug){
-              #rug(bl_data[[i]][[2]], ticksize = 0.02) 
-              rug(x$yind, ticksize = 0.02)
+            
+            
+            # effect of two factor variables
+            if(is.factor(trm$x) && is.factor(trm$z)){
+              plotWithArgs(matplot, args=argsMatplot, 
+                           myargs=list(x=trm$y, y=t(trm$value), xlab=trm$ylab, main=trm$main, 
+                                       ylab="coef", type="l", sub=trm$add_main))
+              if(rug){
+                rug(x$yind, ticksize = 0.02)
+              }
+            }else{
+              
+              if(pers){
+                plotWithArgs(persp, args=argsPersp,
+                             myargs=list(x=trm$x, y=trm$y, z=trm$value, xlab=paste("\n", trm$xlab), 
+                                         ylab=paste("\n", trm$ylab), zlab=paste("\n", "coef"), 
+                                         theta=30, phi=30, ticktype="detailed", 
+                                         zlim=range(trm$value), col=getColPersp(trm$value), 
+                                         main=trm$main))  
+                
+              }else{
+                plotWithArgs(image, args=argsImage,
+                             myargs=list(x=trm$y, y=trm$x, z=t(trm$value), xlab=trm$ylab, ylab=trm$xlab, 
+                                         main=trm$main, col = heat.colors(length(trm$x)^2), 
+                                         sub=trm$add_main))          
+                plotWithArgs(contour, args=argsContour,
+                             myargs=list(trm$y, trm$x, z=t(trm$value), add = TRUE))
+                
+                if(rug){
+                  rug(bl_data[[i]][[trm$xlab]], ticksize = 0.02)
+                  if(is.null(bl_data[[i]][[trm$xlab]])) rug(attr(bl_data[[i]][[1]], "signalIndex"), ticksize = 0.02)
+                  rug(bl_data[[i]][[trm$ylab]], ticksize = 0.02, side=2)
+                }
+              }
+              
+            }
+            
+          }else{
+            
+            if(is.factor(trm$y)){ # effect with by-variable (by-variable is factor)
+              plotWithArgs(matplot, args=argsMatplot, 
+                           myargs=list( x=trm$z, y=t(trm$value), xlab=trm$ylab, main=trm$main, 
+                                        ylab="coef", type="l", col=as.numeric(trm$y) ) )
+              if(rug){
+                #rug(bl_data[[i]][[3]], ticksize = 0.02) 
+                rug(x$yind, ticksize = 0.02)
+              }
+            }else{ # effect of factor variable
+              plotWithArgs(matplot, args=argsMatplot, 
+                           myargs=list(x=trm$y, y=t(trm$value), xlab=trm$ylab, main=trm$main, 
+                                       ylab="coef", type="l"))
+              if(rug){
+                #rug(bl_data[[i]][[2]], ticksize = 0.02) 
+                rug(x$yind, ticksize = 0.02)
+              }
             }
           }
+          
           
         }else{
           # persp-plot for 2-dim effects
@@ -1530,7 +1697,7 @@ plot.FDboost <- function(x, raw = FALSE, rug = TRUE, which = NULL,
       
       ### call to function myplot()
       if(is.null(trm$numberLevels)){
-        myplot(trm=trm)
+        myplot(trm = trm)
       }else{  # several levels of bl1 %X% bl2
         lapply(trm[1:trm$numberLevels], myplot)
       }
@@ -1608,6 +1775,126 @@ plot.FDboost <- function(x, raw = FALSE, rug = TRUE, which = NULL,
     }       
 }
 
+#' Function to update FDboost objects
+#' 
+#' @param object fitted FDboost-object
+#' @param weights,oobweights,risk,trace see \code{?FDboost}
+#' @param ... Additional arguments to the call, or arguments with changed values. 
+#' @param evaluate If true evaluate the new call else return the call.	
+#' 
+#' @return Returns the call of (\code{evaluate = FALSE}) or the updated (\code{evaluate = TRUE}) FDboost model
+#' @author David Ruegamer
+#' @examples 
+#' ######## Example from \code{?FDboost}
+#' data("viscosity", package = "FDboost") 
+#' ## set time-interval that should be modeled
+#' interval <- "101"
+#' 
+#' ## model time until "interval" and take log() of viscosity
+#' end <- which(viscosity$timeAll == as.numeric(interval))
+#' viscosity$vis <- log(viscosity$visAll[,1:end])
+#' viscosity$time <- viscosity$timeAll[1:end]
+#' # with(viscosity, funplot(time, vis, pch = 16, cex = 0.2))
+#' 
+#' mod1 <- FDboost(vis ~ 1 + bolsc(T_C, df = 2) + bolsc(T_A, df = 2),
+#'                timeformula = ~ bbs(time, df = 4),
+#'                numInt = "equal", family = QuantReg(),
+#'                offset = NULL, offset_control = o_control(k_min = 9),
+#'                data = viscosity, control=boost_control(mstop = 10, nu = 0.4))
+#'                
+#' # update nu
+#' mod2 <- update(mod1, control=boost_control(nu = 1)) # mstop will stay the same
+#' # update mstop
+#' mod3 <- update(mod2, control=boost_control(mstop = 100)) # nu=1 does not get changed
+#' mod4 <- update(mod1, formula = vis ~ 1 + bolsc(T_C, df = 2)) # drop one term
+#' @method update FDboost
+#' @export
+update.FDboost <- function(object, weights = NULL, oobweights = NULL, risk = NULL, 
+                           trace = NULL, ..., evaluate = TRUE) 
+{
+  
+  stopifnot(inherits(object,"FDboost"))
+  
+  call <- object$call
+  
+  extras <- match.call(expand.dots = FALSE)$...
+  
+  if (!is.null(risk) | !is.null(trace) | !is.null(extras$control)) {
+    
+    cc <- as.list(call$control)
+    if(length(cc)==0) cc <- list(as.symbol("boost_control"))
+    if(!is.null(risk)) cc$risk <- risk
+    if(!is.null(trace)) cc$trace <- trace
+    if(!is.null(extras$control)) cc[names(as.list(extras$control))[-1]] <- as.list(extras$control)[-1]
+    
+    extras$control <- as.call(cc)
+    
+  } 
+  
+  if(!is.null(weights)) extras$weights <- weights
+  if(!is.null(oobweights)) extras$oobweights <- oobweights
+  
+  
+  if (length(extras) > 0) {
+    
+    existing <- !is.na(match(names(extras), names(call)))
+    
+    for (a in names(extras)[existing]) call[[a]] <- extras[[a]]
+    
+    if (any(!existing)) {
+      call <- c(as.list(call), extras[!existing])
+      call <- as.call(call)
+    }
+    
+  }
+  
+  if(is.null(extras$data)){
+    
+    data <- as.list(object$data)
+    yind <- all.vars(as.formula(object$timeformula))[[1]]
+    data[[yind]] <- object$yind
+    yname <- all.vars(as.formula(object$formulaFDboost))[1]
+    data[[yname]] <- object$response
+    
+    if(length(object$response) != length(object$yind)){
+      # format long to wide
+      stopifnot(!is.null(object$id))
+      data[[yname]] <- matrix(data[[yname]], ncol = length(object$yind), byrow = FALSE)
+      
+    }
+    assign(as.character(call$data), data)
+    
+    #    
+    #     if(!is.null(object$id)) call$id <- ~id
+    
+  }else{
+    
+    ### new data only possible if all base-learners have brackets and
+    ### no new formula was supplied
+    if(is.null(extras$formula)){
+      
+      ### check for brackets
+      singleBls <- gsub("\\s", "", unlist(lapply(strsplit(
+        strsplit(object$formulaFDboost, "~")[[1]][2], # split formula
+        "\\+")[[1]], # split additive terms
+        function(y) strsplit(y, split = "%.{1,3}%")) # split single baselearners
+      )) 
+      
+      singleBls <- singleBls[singleBls!="1"]
+      
+      if(any( !grepl("\\(",singleBls) )) 
+        stop(paste0("update can not deal with the following base-learner(s) without brackets: ", 
+                    paste(singleBls[!grepl("\\(",singleBls)], collapse=", "), ".\n",
+                    "Please build such base-learners within the FDboost call or ",  
+                    "update corresponding baselearner(s) manually and supply a new formula to the update function."))
+      
+    }
+    
+  }
+  
+  if (evaluate) eval(call, parent.frame()) else call
+  
+}
 
 
 ########################################################################################

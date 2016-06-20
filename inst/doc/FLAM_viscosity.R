@@ -13,14 +13,14 @@ funplotLogscale <- function(x, y, ylim = NULL, col=1, add=FALSE, ...){
   if(!add){
     if(is.null(ylim)) ylim <- range(y, na.rm=TRUE)
     
-    plot(x, rep(1, length(x)), col="white", ylim=ylim, yaxt="n",
-         ylab="", xlab="",...)
+    plot(x, rep(1, length(x)), col = "white", ylim = ylim, yaxt = "n",
+         ylab = "", xlab = "",...)
     
     mtext("time [s]", 1, line=2, cex=1.5)
     mtext("viscosity [mPas]", 2, line=2, cex=1.5)
     
-    abline(h=log(1*10^(0:9)), col="gray")
-    axis(2, at=log(1*10^(0:9)), labels=1*10^(0:9))
+    abline(h = log(1*10^(0:9)), col="gray")
+    axis(2, at = log(1*10^(0:9)), labels=1*10^(0:9))
     
     #axis(4, at=log(0.001*10^(0:9)), labels=FALSE)
     
@@ -156,10 +156,10 @@ dev.off()
 ###################################################
 set.seed(1911)
 mod1 <- FDboost(vis ~ 1 + bols(T_C) + bols(T_A) + bols(T_C_T_A),
-                timeformula=~bbs(time, lambda=100),  
-                numInt="Riemann", family=QuantReg(), check0=FALSE, 
-                offset=NULL, offset_control = o_control(k_min = 10),
-                data=viscosity, control=boost_control(mstop = 200, nu = 0.2))
+                timeformula = ~bbs(time, lambda = 100),  
+                numInt = "Riemann", family = QuantReg(), check0 = FALSE, 
+                offset = NULL, offset_control = o_control(k_min = 10),
+                data = viscosity, control = boost_control(mstop = 200, nu = 0.2))
 
 
 ###################################################
@@ -172,10 +172,9 @@ mod1 <- mod1[430]
 ### code chunk number 9: cv-selected-model (eval = FALSE)
 ###################################################
 ## set.seed(1911)
-## folds <- cv(weights=rep(1, mod1$ydim[1]), type="bootstrap", B=10)
-## cvm1 <- suppressWarnings(validateFDboost(mod1, folds = folds, 
-##                                   getCoefCV=FALSE,  
-##                                   grid=seq(10, 500, by=10), mc.cores=10))
+## folds <- cv(weights = rep(1, mod1$ydim[1]), type = "bootstrap", B = 10)
+## cvm1 <- validateFDboost(mod1, folds = folds, getCoefCV = FALSE, 
+##                         grid = seq(10, 500, by = 10), mc.cores = 10)
 ## mstop(cvm1) # 430
 ## mod1 <- mod1[mstop(cvm1)]
 ## # summary(mod1)
@@ -219,7 +218,7 @@ funplotLogscale(mod1$yind, pred2[3:4,], col=mycol[1], ylim=c(-0.5,6), lty=2, lwd
 lines(mod1$yind, pred3[2,], col=mycol[2], lty=3, lwd=2)
 lines(mod1$yind, pred4[4,], col=mycol[3], lty=4, lwd=2)
 legend("topright", lty=2:4, lwd=2, col=mycol,
-       legend=c("effect T_C high","effect T_A high","effect T_C, T_A high"))
+       legend=c("effect T_C high", "effect T_A high", "effect T_C, T_A high"))
 dev.off()
 
 
