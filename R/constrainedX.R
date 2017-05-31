@@ -1,7 +1,5 @@
 #' Constrained row tensor product 
 #' 
-#' EXPERIMENTAL! 
-#' 
 #' Combining single base-learners to form new, more complex base-learners, with
 #' an identifiability constraint to center the interaction around the intercept and
 #' around the two main effects. Suitable for functional response. 
@@ -16,13 +14,18 @@
 #' as the interaction is centerd around the intercept and centered around the two main effects. 
 #' See Web Appendix A of Brockhaus et al. (2015) for details on how to enforce the constraint 
 #' for the functional intercept.   
-#' Use e.g. in a model call to \code{FDboost}, following the scheme, 
+#' Use, e.g., in a model call to \code{FDboost}, following the scheme, 
 #' \code{y ~ 1 + bolsc(x1) + bolsc(x2) + bols(x1) \%Xc\% bols(x2)}, 
-#' where \code{1} induces a global intercept and \code{x1}, \code{x2} are factor variables.  
+#' where \code{1} induces a global intercept and \code{x1}, \code{x2} are factor variables, 
+#' see Ruegamer et al. (2016).  
 #' 
 #' @references 
 #' Brockhaus, S., Scheipl, F., Hothorn, T. and Greven, S. (2015): 
 #' The functional linear array model. Statistical Modelling, 15(3), 279-300.
+#' 
+#' Ruegamer D., Brockhaus, S., Gentsch K., Scherer, K., Greven, S. (2016). Detecting synchronisation in 
+#' EEG- and EMG-Signals via boosted functional historical models. 
+#' \url{http://arxiv.org/abs/1609.06070}
 #' 
 #' @author Sarah Brockhaus, David Ruegamer
 #' 
@@ -340,7 +343,7 @@ bl_lin_matrix_a <- function(blg, Xfun, args) {
             if( all((W == w1w2)[w1w2 == 0]) & all((W == w1w2)[W == 0]) & ## check positions of zeros 
                 length(multFactor) == 1 ){ # check that only 1 multiplicative factor 
               
-              ## <FIXME> how to know whether multFactor is multiplied to w1 or w2?
+              ## it is impossible to know whether multFactor is multiplied to w1 or w2! 
               # w2 <- w2 * multFactor
               # all( W == (w1 %*% t(w2 * multFactor)))
               # all( W == ( (w1 * multFactor) %*% t(w2)))
@@ -352,7 +355,6 @@ bl_lin_matrix_a <- function(blg, Xfun, args) {
               if(nrow(unique(W, MARGIN = 1)) != 1){
                 warning("Assume that resampling is such that whole observations of blg1 are used.")
               }
-              ## <FIXME>
               
             }else{
               warning("Set all weights = 1 for computation of lambda1 and lambda2 in %A%.")
@@ -387,7 +389,7 @@ bl_lin_matrix_a <- function(blg, Xfun, args) {
         }else{
           ## call df2lambda for marginal bl1 
           al1 <- mboost_intern(X = X$X1,  # X$X1[expand_index1 , , drop = FALSE],
-                               df = args$df1, lambda = NULL, ## lambda = args$df1, FIXME allow for lambda in %A%?
+                               df = args$df1, lambda = NULL, ## lambda = args$df1, do not allow for lambda in %A%
                                dmat = args$K1, weights = w1, XtX = NULL, 
                                fun = "df2lambda")
           args$lambda1 <- al1["lambda"]
@@ -553,7 +555,6 @@ bl_lin_matrix_a <- function(blg, Xfun, args) {
 
 #' Kronecker product or row tensor product of two base-learners with anisotropic penalty 
 #' 
-#' EXPERIMENTAL! 
 #' Kronecker product or row tensor product of two base-learners allowing for anisotropic penalties. 
 #' For the Kronecker product, \code{\%A\%} works in the general case, \code{\%A0\%} for the special case where 
 #' the penalty is zero in one direction. 
@@ -697,7 +698,7 @@ NULL
 #' @export
 "%A%" <- function(bl1, bl2) {
 
-  ###### <FIXME> was passiert hier???
+  ### code snippet from %O% in package mboost
   #   if (is.list(bl1) && !inherits(bl1, "blg"))
   #     return(lapply(bl1, "%X%", bl2 = bl2))
   #   
@@ -751,12 +752,7 @@ NULL
     args <- list(lambda = NA, df = NA)
     
   }else{
-    
-    ## origianl code of %O%
-    # args <- list(lambda = NULL,
-    #             df = ifelse(is.null(args1$df), 1, args1$df) *
-    #             ifelse(is.null(args2$df), 1, args2$df))
-    
+
     ### <SB> anisotropic penalty matrix
     ### save lambda, df and penalty matrices of the marginal base-learners 
     args <- list(lambda = NULL,

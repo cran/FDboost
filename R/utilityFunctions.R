@@ -8,7 +8,7 @@
 #' @param silent print error messages of model fit?
 #' @param cyclic defaults to FALSE, if TRUE cyclic splines are used
 #' @param knots arguments knots passed to \code{\link[mgcv]{gam}}
-
+#' 
 #' @export 
 o_control <- function(k_min=20, rule=2, silent=TRUE, cyclic=FALSE, knots=NULL) { 
   RET <- list(k_min=k_min, rule=rule, silent=silent, cyclic=cyclic, knots=knots)
@@ -101,8 +101,6 @@ funplot <- function(x, y, id=NULL, rug=TRUE, ...){
   argsMatplot  <- getArguments(x=c(formals(graphics::matplot), par(), main="", sub=""), dots=dots)
   argsPlot <- getArguments(x=c(formals(graphics::plot.default), par()), dots=dots)
   
-  
-  #if( !(is.vector(y) | is.atomic(y)) ){  # is.null(id)
   if( !is.null(dim(y)) ){ # is.null(id)
     
     # Deal with missing values: interpolate data
@@ -208,9 +206,6 @@ funplot <- function(x, y, id=NULL, rug=TRUE, ...){
     
   }
   
-  #   matplot(time, t(y), xlab=xlabel, ylab="", type="p", pch=3)
-  #   matplot(time, t(y), type="l", pch=1, lty=1, add=TRUE)
-  #   matplot(time, t(yint), type="l", pch=1, lty=3, add=TRUE)  
 }
 
 
@@ -225,31 +220,48 @@ plotPredicted <- function(x, subset=NULL, posLegend="topleft", lwdObs=1, lwdPred
   
   stopifnot("FDboost" %in% class(x))
   
-  if(!any(class(x)=="FDboostLong")){
-    if(is.null(subset)) subset <- 1:x$ydim[1]
-    response <- matrix(x$response, nrow=x$ydim[1], ncol=x$ydim[2])[subset, , drop=FALSE] 
-    pred <- fitted(x)[subset, , drop=FALSE]
+  if(any(class(x) == "FDboostScalar")){
+    
+    if(is.null(subset)) subset <- 1:length(x$response)
+    response <- x$response[subset, drop=FALSE] 
+    pred <- fitted(x)[subset, drop=FALSE]
     pred[is.na(response)] <- NA
-    yind <- x$yind
-    id <- NULL
+    
   }else{
-    if(is.null(subset)) subset <- unique(x$id)
-    response <- x$response[x$id %in% subset] 
-    pred <- fitted(x)[x$id %in% subset]
-    pred[is.na(response)] <- NA
-    yind <- x$yind[x$id %in% subset] 
-    id <- x$id[x$id %in% subset]
+    
+    if(!any(class(x) == "FDboostLong")){
+      if(is.null(subset)) subset <- 1:x$ydim[1]
+      response <- matrix(x$response, nrow=x$ydim[1], ncol=x$ydim[2])[subset, , drop=FALSE] 
+      pred <- fitted(x)[subset, , drop=FALSE]
+      pred[is.na(response)] <- NA
+      yind <- x$yind
+      id <- NULL
+    }else{
+      if(is.null(subset)) subset <- unique(x$id)
+      response <- x$response[x$id %in% subset] 
+      pred <- fitted(x)[x$id %in% subset]
+      pred[is.na(response)] <- NA
+      yind <- x$yind[x$id %in% subset] 
+      id <- x$id[x$id %in% subset]
+    }
+    
   }
   
   if(is.character(response) | is.factor(x$response)){
-    message("For response that is not continuous only the predicted values are plotted.")
-    ylim <- range(pred, na.rm = TRUE)
-    funplot(yind, pred, id=id, pch=2, lwd=lwdPred, ... )
+
+    if(length(x$yind) > 1){
+      message("For functional response that is not continuous only the predicted values are plotted.")
+      funplot(yind, pred, id=id, pch=2, lwd=lwdPred, ... )
+    }else{
+      plot(response, pred, ylab="predicted", xlab="observed", ...)
+    }
+    
+    
   } else{
     
     ylim <- range(response, pred, na.rm = TRUE)
     
-    if(length(x$yind)>1){
+    if(length(x$yind) > 1){
       # Observed values
       funplot(yind, response, id=id, pch=1, ylim=ylim, lty=3, 
               ylab=x$yname, xlab=attr(x$yind, "nameyind"), lwd=lwdObs, ...)
@@ -274,32 +286,36 @@ plotPredicted <- function(x, subset=NULL, posLegend="topleft", lwdObs=1, lwdPred
 ### function to plot the residuals
 plotResiduals <- function(x, subset=NULL, posLegend="topleft", ...){
   
-  if(is.character(x$response) | is.factor(x$response)) stop("plotResiduals() only works for continuous response.")
-  
   stopifnot("FDboost" %in% class(x))
   
-  if(!any(class(x)=="FDboostLong")){ ## wide format
-    if(is.null(subset)) subset <- 1:x$ydim[1]
-    response <- matrix(x$response, nrow=x$ydim[1], ncol=x$ydim[2])[subset, , drop=FALSE] 
-    pred <- fitted(x)[subset, , drop=FALSE]
-    pred[is.na(response)] <- NA
-    yind <- x$yind
-    id <- NULL
-  }else{ ## long format
-    if(is.null(subset)) subset <- unique(x$id)
-    response <- x$response[x$id %in% subset] 
-    pred <- fitted(x)[x$id %in% subset]
-    pred[is.na(response)] <- NA
-    yind <- x$yind[x$id %in% subset]
-    id <- x$id[x$id %in% subset] 
+  if(any(class(x) == "FDboostScalar")){
+    
+    if(is.null(subset)) subset <- 1:length(x$response)
+    response <- x$response[subset, drop=FALSE] 
+    resid <- x$resid()[subset, drop=FALSE]
+    
+  }else{
+    
+    if(!any(class(x) == "FDboostLong")){ ## wide format
+      if(is.null(subset)) subset <- 1:x$ydim[1]
+      resid <- matrix(x$resid(), nrow = x$ydim[1])[subset, , drop=FALSE]
+      yind <- x$yind
+      id <- NULL
+      
+    }else{ ## long format
+      if(is.null(subset)) subset <- unique(x$id)
+      resid <- x$resid()[x$id %in% subset, drop=FALSE]
+      yind <- x$yind[x$id %in% subset]
+      id <- x$id[x$id %in% subset] 
+    }
+    
   }
   
   # Observed - predicted values
-  if(length(x$yind)>1){
-    funplot(yind, response-pred, id=id, ylab=x$yname, xlab=attr(x$yind, "nameyind"), ...) 
+  if(length(x$yind) > 1){
+    funplot(yind, resid, id=id, ylab=x$yname, xlab=attr(x$yind, "nameyind"), ...) 
   }else{
-    plot(response, response-pred, ylab="residuals", xlab="observed", ...)
-    #abline(h=0)
+    plot(response, resid, ylab="residuals", xlab="observed", ...)
   }
   
 }
@@ -688,7 +704,6 @@ check_ident <- function(X1, L, Bs, K, xname, penalty,
   }
   
   ### compute condition number of Ds^t Ds
-  ### <FIXME> possibel to use argument stand here?
   Ds <- (X1 * L) %*% Bs
   ## DstDs <- crossprod(Ds)
   ## e_DstDs <- try(eigen(DstDs))
@@ -781,24 +796,8 @@ check_ident <- function(X1, L, Bs, K, xname, penalty,
     }
   } ## end of computation of logCondDs_hist for historical effects
   
-  
-  ## measure degree of overlap between the spans of ker(t(X1)) and W%*%Bs%*%ker(K)
-  ## ker = kernel = null space 
-  ## overlap measure like in Scheipl and Greven, 2016
-  ## based on distance measure of Larsson and Villani, 2001
-  
-  #### code from pffr-ff.R to compute overlap for whole matrix
-  #   N.X <- Null(t(X1))
-  #   N.pen <- diag(L[1, ]) %*% Bs %*% Null(K)
-  #   if (any(c(NCOL(N.X) == 0, NCOL(N.pen) == 0))) {
-  #     nullOverlap <- 0
-  #   }
-  #   else {
-  #     nullOverlap <- trace_lv(svd(N.X)$u, svd(N.pen)$u)
-  #   }
-  
   getOverlap <- function(subset, X1, L, Bs, K){
-    # <FIXME> case that all observations are 0, kernel is everything -> kernel overlap
+    # In the case that all observations are 0, kernel is everything -> kernel overlap
     if(all(X1[ , subset]==0)){
       return(5)
     }
@@ -816,63 +815,10 @@ check_ident <- function(X1, L, Bs, K, xname, penalty,
     return(nullOverlap)
   }
   
-  #### check: 
-  #### nullOverlap == getOverlap(subset=1:ncol(X1), X1=X1, L=L, Bs=Bs, K=K)
-  
-  ####### old cumbersome code to compute the null space overlap
-  #   tryNA <- function(expr){
-  #     ret <- try(expr, silent = TRUE)
-  #     if(any(class(ret)=="try-error")) return(NA)
-  #     return(ret)
-  #   }
-  #   tryNull <- function(expr){
-  #     ret <- try(expr, silent = TRUE)
-  #     if(any(class(ret)=="try-error")) return(matrix(NA, 0, 0))
-  #     return(ret)
-  #   }
-  #   
-  #   ### get special measures for kernel overlap of WB_s(P_s) with subset of Xobs
-  #   ### overlap measure based on distance measure of Larsson and Villani 2001
-  #   ### as proposed by Scheipl and Greven 2016
-  #   getOverlap <- function(subset, X1, L, Bs, K){
-  #     # <FIXME> case that all observations are 0, kernel is everything -> kernel overlap
-  #     if(all(X1[ , subset]==0)){
-  #       return(5)
-  #     }
-  #     KeXsub <- tryNull(Null(t(X1[ , subset])))
-  #     if(ncol(KeXsub)==0){ # no null space
-  #       return(0)
-  #     }
-  #     KePen2sub <- tryNull(diag(L[1,subset]) %*% Bs[subset,] %*% Null(K))
-  #     overlapSub <- tryNA(trace_lv(svd(KeXsub)$u, svd(KePen2sub)$u))
-  #     return(overlapSub)
-  #   }
-  
   cumOverlapKe <- NULL
   overlapKe <- NULL
   overlapKeComplete <- NULL
-  
-  #   ## cumulative overlap for historical model in the special case of s<t
-  #   if(cumOverlap){   
-  #     restm <- ncol(X1) %% 10 # rest of modulo calculation 
-  #     ntemp <- (ncol(X1)-restm)/10 # group-size without rest
-  #     ## subset with 1/10, 2/10, ..., 10/10 of the observation points
-  #     if(restm > ntemp){ # case that rest is bigger than group size
-  #       subs <- c(list(1:restm), lapply(1:8, function(i) 1:(restm+i*ntemp)), list(1:ncol(X1)))
-  #     }else{
-  #       subs <- c(lapply(1:9, function(i) 1:(restm+i*ntemp)), list(1:ncol(X1)))
-  #     }
-  #     cumOverlapKe <- sapply(subs, getOverlap, X1=X1, L=L, Bs=Bs, K=K)
-  #     overlapKe <- max(cumOverlapKe, na.rm = TRUE) #cumOverlapKe[[length(cumOverlapKe)]]
-  #     
-  #   }else{ # overlap between whole matrix X and penalty
-  #     overlapKe <- getOverlap(subset=1:ncol(X1), X1=X1, L=L, Bs=Bs, K=K)
-  #   } 
-  #   print("overlapKe")
-  #   print(overlapKe)
-  #   plot( seq(min(t_unique), max(t_unique), l=10), cumOverlapKe, ylim=c(0,1))
-  
-  
+
   ## sequential overlap for historical model with general integration limits
   if(!is.null(limits)){  
     
@@ -886,9 +832,6 @@ check_ident <- function(X1, L, Bs, K, xname, penalty,
   }else{ # overlap between whole matrix X and penalty
     overlapKe <- getOverlap(subset=1:ncol(X1), X1=X1, L=L, Bs=Bs, K=K)
   }
-  # print("overlapKe general limits")
-  # print(overlapKe)
-  # points(t_unique, cumOverlapKe, col=2)
   
   # look at overlap with whole functional covariate 
   overlapKeComplete  <- getOverlap(subset=1:ncol(X1), X1=X1, L=L, Bs=Bs, K=K)
@@ -913,8 +856,8 @@ check_ident <- function(X1, L, Bs, K, xname, penalty,
 trace_lv <- function(A, B, tol=1e-10){
   ## A, B orthnormal!!
   
-  #Rolf Larsson, Mattias Villani (2001)
-  #"A distance measure between cointegration spaces"
+  # Rolf Larsson, Mattias Villani (2001)
+  # "A distance measure between cointegration spaces"
   
   if(NCOL(A)==0 | NCOL(B)==0){
     return(0)
@@ -1008,6 +951,8 @@ safeDeparse <- function(expr){
 #' @param idvars character (vector); index, which is needed to expand \code{vars} to be conform
 #' with the \code{hmatrix} structure when using \code{bhistx}-base-learners or to be conform with 
 #' variables in long format specified in \code{longvars}. 
+#' @param compress logical; whether \code{hmatrix} objects are saved in compressed form or not. Default is \code{TRUE}.
+#' Should be set to \code{FALSE} when using \code{reweightData} for nested resampling.
 #' 
 #' @return A list with the reweighted or subsetted data.
 #' 
@@ -1062,15 +1007,16 @@ safeDeparse <- function(expr){
 #' @author David Ruegamer, Sarah Brockhaus
 #' 
 #' @export 
-reweightData <- function(data, argvals, vars, longvars = NULL, 
-                         weights, index, idvars = NULL)
+reweightData <- function(data, argvals, vars, 
+                         longvars = NULL, weights, index, 
+                         idvars = NULL, compress = FALSE)
 {
   
   if(missing(argvals) & missing(vars)) 
     stop("Either argvals or vars must be supplied.")
   if(missing(weights) & missing(index)) 
     stop("Either weights or index must be supplied.")
-  
+
   # get names of data
   nd <- names(data)
   
@@ -1103,8 +1049,14 @@ reweightData <- function(data, argvals, vars, longvars = NULL,
   dimd <- lapply(data, dim)
   isVec <- sapply(dimd, is.null)
   
-  if(length(vars) == 1 && sum(whichHmat) == 1) 
-    n <- nrow(attr(data[[vars]],"x")) else{
+  if(length(vars) == 1 && sum(whichHmat) == 1){
+    
+    n <- nrow(attr(data[[vars]],"x"))
+    if((nalt <- length(unique(getId.hmatrix(data[[vars[whichHmat]]]))))!=n)
+      n <- nalt
+      #warning("Dimension of hmatrix is not equal to its corresponding attribute.")
+    
+  }else{
       
       if(length(whichHmat) == 0){ 
         
@@ -1120,7 +1072,7 @@ reweightData <- function(data, argvals, vars, longvars = NULL,
           
         }
         
-        }else{
+      }else{
       
           n <- NROW(data[[vars[!whichHmat][1]]])
           n_variables <- sapply(data[vars][!whichHmat], NROW)
@@ -1167,56 +1119,28 @@ reweightData <- function(data, argvals, vars, longvars = NULL,
   if(any(whichHmat)){
     
     # construct a list for new hmatrices
-    newHatmats <- vector("list", length(nhm))
+    newHmats <- vector("list", length(nhm))
     
-    # construct the new hmatrices
+    ## construct the new hmatrices
     for(j in 1:length(nhm)){
       
       ## check that idvars == idvars[[1]] and match id-variables in all hmatrix-objects
       if(!is.null(idvars) && !(all.equal(c(getId(data[[nhm[j]]])), c(data[[idvars[1]]])) == "TRUE")) 
         stop("id variable in hmatrix object must be equal to idvars")
       
-      ## number columns of X-matrix in hmatrix-object
-      nc <- ncol(attr(data[[nhm[j]]], "x"))
+      ## subset hmatrix
+      newHmats[[j]] <- subset_hmatrix(data[[nhm[j]]], index = index, compress = compress)
       
-      tempHmat <- data[[nhm[j]]]
-      attrTemp <- attributes(tempHmat)
-      # save time and id variable of hmatrix-object as ordinary matrix
-      # otherwise [ on a hmatrix-object behaves unexpectedly 
-      tempMat <- cbind(tempHmat[,1], tempHmat[, 2])
-      resMat <- matrix(ncol=3)
-      for(t in unique(tempHmat[,1])){ 
-        
-        idInT <- index %in% tempMat[tempMat[,1] == t, 2]
-        # add rows for observations selected by index for time t
-        resMat <- rbind(resMat, matrix(c(rep(t, sum(idInT)), # for time points in hmatrix
-                                         index[idInT], # for id in hmatrix
-                                         (1:length(index))[idInT]), # for idvars 
-                                       ncol=3))
-        
-      }
-      resMat <- resMat[-1,] # drop first row with NAs
-      idvars_new <- resMat[,3]
-      resMat <- resMat[,-3]
-      resMat[,2] <- c(factor(resMat[,2])) # get id variable with values 1, 2, 3, ...
-      tempId <- (1:length(unique(resMat[,2])))[factor(resMat[,2])] # correct ordering 
-      newHatmats[[j]] <- hmatrix(time = resMat[,1], 
-                                 id = tempId, 
-                                 x = attrTemp$x[unique(index), , drop=FALSE], 
-                                 argvals = attrTemp$argvals, 
-                                 timeLab = attrTemp$timeLab, 
-                                 idLab = attrTemp$idLab, 
-                                 xLab = attrTemp$xLab, 
-                                 argvalsLab = attrTemp$argvalsLab)
       if( any(class(data[[nhm[j]]]) == "AsIs") ){
-        newHatmats[[j]] <- I(newHatmats[[j]])
+        newHmats[[j]] <- I(newHmats[[j]])
       }
+      
     }
-    names(newHatmats) <- nhm
+    names(newHmats) <- nhm
     
-  }else{ # if there are no hmatrices, set the list and corresponding names to NULL
+  }else{ ## if there are no hmatrices, set the list and corresponding names to NULL
     
-    newHatmats <- NULL
+    newHmats <- NULL
     nhm <- NULL
     
   }
@@ -1225,9 +1149,10 @@ reweightData <- function(data, argvals, vars, longvars = NULL,
   ## do the indexing for the variables in long format 
   if(!is.null(longvars)){
     if(any(idvars %in% longvars)) longvars <- longvars[!longvars %in% idvars]
+    ## create weights and index in long format
     weights_long <- weights[data[[idvars[1]]]]
     index_long <- rep(1:length(weights_long), weights_long)
-    ## TODO do that within "recycle data"
+    ## indexing variables in long format
     temp_long <- lapply(longvars, function(nameWithoutDim) data[[nameWithoutDim]][index_long])
     
     #### create new id variable 1, 2, 3, ... that can be used for FDboost()
@@ -1241,20 +1166,19 @@ reweightData <- function(data, argvals, vars, longvars = NULL,
     
     ## gives equal numbers to repetitions of the same observation
     ## idvars_new <- c(factor(temp_idvars))
-    
-    ## @David: hack to change the id, what is about the id in hmatrix?
+   
     ## gives different numbers to repetitions of the same observation
     my_index_long <- index_long 
     my_temp_idvars <- temp_idvars
     i <- 1
-    # add 0.1^1 to duplicates, 0.1^1 + 0.1^2 = 0.11 to triplicates, ...
+    ## add 0.1^1 to duplicates, 0.1^1 + 0.1^2 = 0.11 to triplicates, ...
     while(any(duplicated(my_index_long))){ # loop until no more duplicates in the data  
       my_temp_idvars[duplicated(my_index_long)] <- my_temp_idvars[duplicated(my_index_long)] + 0.1^i
       my_index_long[duplicated(my_index_long)] <- my_index_long[duplicated(my_index_long)] + 0.1^i
       i <- i + 1
     }
     idvars_new <- c(factor(my_temp_idvars))
-    ## check wheterh id variable of hmatrix-object and id variable of long variables are equal
+    ## check whether id variable of hmatrix-object and id variable of long variables are equal
     if(!is.null(idvars_new_hmatrix)){
       if(!all(idvars_new == idvars_new_hmatrix)) 
         warning("id variable generated for long variables and id variable of hmatrix-object do not match. ",
@@ -1263,26 +1187,26 @@ reweightData <- function(data, argvals, vars, longvars = NULL,
   }
   
   ## compute idvars_new in hmatrix-part or in longvars part, but add to data here 
-  # if idvars exist, subset accordingly;
-  # idvars has to be the same for all hmatrix-objects and response! 
+  ## if idvars exist, subset accordingly;
+  ## idvars has to be the same for all hmatrix-objects and response! 
   if(!is.null(idvars)){
     
     ## only works for common observation grid of response
-    # idvars_new <- rep(1:length(index), nc) # index = c(1, 1, 2) -> 1, 2, 3
+    ## idvars_new <- rep(1:length(index), nc) # index = c(1, 1, 2) -> 1, 2, 3
     
     for(ifr in idvars){
       data[[ifr]] <- idvars_new
     } 
-    ## data[[idvars]] <- getId(newHatmats[[j]])
+    ## data[[idvars]] <- getId(newHmats[[j]])
     argvals <- c(argvals, idvars)
   }
   
   inAVs <- nd %in% argvals
   
-  # recycle data
+  ## recycle data
   data <- c(lapply(nd[!isVec & !inAVs], function(nameWithDim) data[[nameWithDim]][index, , drop=FALSE]),
             lapply(nd[isVec & !inAVs], function(nameWithoutDim) data[[nameWithoutDim]][index]), 
-            newHatmats, 
+            newHmats, 
             temp_long, 
             data[argvals])
   names(data) <- c(nd[!isVec & !inAVs], nd[isVec & !inAVs], nhm, longvars, argvals)

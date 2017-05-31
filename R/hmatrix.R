@@ -29,29 +29,30 @@
 #'
 #' @examples 
 #' ## Example for a hmatrix object
-#' t1 <- rep((1:5)/2, each=3)
+#' t1 <- rep((1:5)/2, each = 3)
 #' id1 <- rep(1:3, 5)
-#' x1 <- matrix(1:15, ncol=5) 
+#' x1 <- matrix(1:15, ncol = 5) 
 #' s1 <- (1:5)/2 
-#' myhmatrix <- hmatrix(time=t1, id=id1, x=x1, argvals=s1, timeLab="t1", argvalsLab="s1", xLab="test")
+#' myhmatrix <- hmatrix(time = t1, id = id1, x = x1, argvals = s1, 
+#'                      timeLab = "t1", argvalsLab = "s1", xLab = "test")
 #' 
 #' # extract with [ keeps attributes 
 #' # select observations of subjects 2 and 3
-#' myhmatrixSub <- myhmatrix[id1 %in% c(2,3),]  
+#' myhmatrixSub <- myhmatrix[id1 %in% c(2, 3), ]  
 #' str(myhmatrixSub)
 #' getX(myhmatrixSub)
 #' getX(myhmatrix)
 #' 
 #' # get time
-#' myhmatrix[,1] # as column matrix as drop=FALSE
+#' myhmatrix[ , 1] # as column matrix as drop = FALSE
 #' getTime(myhmatrix) # as vector
 #' 
 #' # get id
-#' myhmatrix[,2] # as column matrix as drop=FALSE
+#' myhmatrix[ , 2] # as column matrix as drop = FALSE
 #' getId(myhmatrix) # as vector
 #' 
 #' # subset hmatrix on the basis of an index, which is defined on the curve level
-#' reweightData(data = list(hmat = myhmatrix), vars = "hmat", index = c(1,1,2))
+#' reweightData(data = list(hmat = myhmatrix), vars = "hmat", index = c(1, 1, 2))
 #' # this keeps only the unique x values in attr(,'x') but multiplies the corresponding
 #' # ids and times in the time id matrix 
 #' # for bhistx baselearner, there may be an additional id variable for the tensor product
@@ -63,8 +64,8 @@
 #' ## use hmatrix within a data.frame
 #' mydat <- data.frame(I(myhmatrix), z=rnorm(3)[id1])
 #' str(mydat)
-#' str(mydat[id1 %in% c(2,3),])
-#' str(myhmatrix[id1 %in% c(2,3),])
+#' str(mydat[id1 %in% c(2, 3), ])
+#' str(myhmatrix[id1 %in% c(2, 3), ])
 #'  
 #' @export
 hmatrix <- function(time, id, x, argvals=1:ncol(x), 
@@ -76,7 +77,6 @@ hmatrix <- function(time, id, x, argvals=1:ncol(x),
   stopifnot(length(time)==length(id))
     
   # convert x to a matrix, especially if x is of class AsIs
-  # <FIXME> is there a more elegant way for this?
   x <- matrix(x, ncol=ncol(x), nrow=nrow(x))  
    
   #### check argvals and x
@@ -280,4 +280,87 @@ wide2long <- function(time, id){
   return(list(time=newtime, id=newid))
 }
 
-
+#' Subsets hmatrix according to an index
+#' 
+#' @param x hmatix object that should be subsetted 
+#' @param index integer vector with (possibly duplicated) indices
+#' for each curve to select
+#' @param compress logical, defaults to \code{TRUE}. Only used to force a meaningful
+#' behaviour of \code{applyFolds} with hmatrix objects when using nested resampling.
+#' 
+#' @details This methods is primary useful when subsetting repeatedly.  
+#' @examples 
+#' t1 <- rep((1:5)/2, each = 3)
+#' id1 <- rep(1:3, 5)
+#' x1 <- matrix(1:15, ncol = 5) 
+#' s1 <- (1:5)/2 
+#' hmat <- hmatrix(time = t1, id = id1, x = x1, argvals = s1, timeLab = "t1", 
+#'                 argvalsLab = "s1", xLab = "test")
+#' 
+#' index1 <- c(1, 1, 3)
+#' index2 <- c(2, 3, 3)
+#' resMat <- subset_hmatrix(hmat, index = index1)
+#' try(resMat2 <- subset_hmatrix(resMat, index = index2))
+#' resMat <- subset_hmatrix(hmat, index = index1, compress = FALSE)
+#' try(resMat2 <- subset_hmatrix(resMat, index = index2))
+#'
+#' @export
+subset_hmatrix <- function(x, index, compress = TRUE)
+{
+  
+  ## get attributes
+  attrTemp <- attributes(x)
+  
+  # save time and id variable of hmatrix-object as ordinary matrix
+  # otherwise [ on a hmatrix-object behaves unexpectedly 
+  tempMat <- cbind(x[, 1], x[, 2])
+  
+  # create new matrix for results
+  resMat <- matrix(ncol=3)
+  
+  # for all unique time points t do
+  for(t in unique(x[, 1])){ 
+    
+    # check whether the id exists for this time point 
+    idInT <- index %in% tempMat[tempMat[,1] == t, 2]
+    # add rows for observations selected by index for time t
+    resMat <- rbind(resMat, 
+                    matrix(c(rep(t, sum(idInT)), # for time points in hmatrix
+                             index[idInT], # for id in hmatrix
+                             (1:length(index))[idInT]), # for idvars 
+                           ncol=3))
+    
+  }
+  
+  # drop first row with NAs
+  resMat <- resMat[-1,]
+  
+  if(compress)
+  {
+    # id with duplicates
+    idvars <- c(factor(resMat[,2])) 
+    # correct ordering
+    idvars <- (1:length(unique(idvars)))[factor(idvars)] 
+    
+    # rewrite index for actual matrix
+    index <- unique(index)
+    
+  }else{
+    # id with unique values
+    idvars <- resMat[,3]
+  }  
+  
+  new_time <- resMat[,1]
+  
+  newHmat <- hmatrix(time = new_time, 
+                     id = idvars, 
+                     x = attrTemp$x[index, , drop=FALSE], 
+                     argvals = attrTemp$argvals, 
+                     timeLab = attrTemp$timeLab, 
+                     idLab = attrTemp$idLab, 
+                     xLab = attrTemp$xLab, 
+                     argvalsLab = attrTemp$argvalsLab)
+  
+  return(newHmat)
+  
+}

@@ -80,7 +80,6 @@ X_histx <- function(mf, vary, args) {
   id <- getId(mf[[1]])  ### id is always there, in long and wide format!!!
   ## id has values 1, 2, 3, ... for response in long format
   
-
   # compute design-matrix in s-direction
   Bs <- switch(args$inS, 
                # B-spline basis of specified degree 
@@ -98,18 +97,6 @@ X_histx <- function(mf, vary, args) {
   
   # integration weights 
   L <- args$intFun(X1=X1, xind=xind)
-  # print(L[1,])
-  
-  ## Weighting with matrix of functional covariate
-  #X1 <- L*X1 ## -> do the integration weights more sophisticated!!
-  
-  #   # set up design matrix for historical model and s<=t with s and t equal to xind
-  #   # expand matrix of original observations to lower triangular matrix 
-  #   X1des0 <- matrix(0, ncol=ncol(X1), nrow=ncol(X1)*nrow(X1))
-  #   for(i in 1:ncol(X1des0)){
-  #     #print(nrow(X1)*(i-1)+1)
-  #     X1des0[(nrow(X1)*(i-1)+1):nrow(X1des0) ,i] <- X1[,i] # use fun. variable * integration weights
-  #   }
   
   ## set up design matrix for historical model according to args$limits()
   # use the argument limits (Code taken of function ff(), package refund)
@@ -139,14 +126,9 @@ X_histx <- function(mf, vary, args) {
   ## save the limits function in the arguments
   args$limits <- limits
   
-  #  ### use function limits to set up design matrix according to function limits 
-  #  ### by setting 0 at the time-points that should not be used
-  #  if(args$format == "wide"){
-  #    ## expand yind by replication to the yind of all observations together
-  #    ind0 <- !t(outer( xind, rep(yind, each=nobs), limits) )
-  #    yindHelp <- rep(yind, each=nobs)
-  #  }else{
-  #### yind is over all observations in long format
+  # use function limits to set up design matrix according to function limits 
+  # by setting 0 at the time-points that should not be used
+  # yind is over all observations in long format
   ind0 <- !t(outer( xind, yind, limits) )
   yindHelp <- yind
   #  }  
@@ -157,56 +139,21 @@ X_histx <- function(mf, vary, args) {
   MATRIX <- MATRIX && options("mboost_useMatrix")$mboost_useMatrix 
   
   if(MATRIX){
-    #message("use sparse matrix in X_hist")
+    # message("use sparse matrix in X_hist")
     diag <- Diagonal
     cbind <- cBind
-    ###### <FIXME> construction of X1des directly as sparse matrix does not work 
     
-    #     ### compute the design matrix as sparse matrix
-    #     if(args$format == "wide"){
-    #       tempIndexDesign <- which(!ind0, arr.ind=TRUE)
-    #       tempIndexX1 <- cbind(rep(1:nobs, length.out=nrow(tempIndexDesign)), tempIndexDesign[,2] )
-    #       X1des <- sparseMatrix(i=tempIndexDesign[,1], j=tempIndexDesign[,2],
-    #                             x=X1[tempIndexX1], dims=dim(ind0))  
-    #       # object.size(X1des)
-    #       rm(tempIndexX1, tempIndexDesign)
-    #     }else{ # long format
-    #       tempj <- unlist(apply(!ind0, 1, which)) # in which columns are the values? 
-    #       ## i: row numbers: one row number per observation of response, 
-    #       #     repeat the row number for each entry
-    #       X1des <- sparseMatrix(i=rep(1:length(id), times=rowSums(!ind0)), j=tempj,
-    #                             x=X1[cbind(rep(id, t=rowSums(!ind0)), tempj)], dims=dim(ind0))
-    #       # object.size(X1des)
-    #       rm(tempj)       
-    #     }
-    
-    #    ###### <FIXME> instead: build the matrix as dense matrix and convert it into a sparse matrix
-    #    if(args$format == "wide"){
-    #      ### expand the design matrix for all observations (yind is equal for all observations!)
-    #      ### the response is a vector (y1(t1), y2(t1), ... , yn(t1), yn(tG))
-    #      X1des <- X1[rep(1:nobs, times=length(yind)), ]
-    #    } else{ # yind is over all observations in long format
-    
-    #    }
+    ## <enhancement> it would be nicer to construct the matrix directly as sparse matrix 
     
     X1des <- X1[id, ] 
     X1des[ind0] <- 0    
     X1des <- Matrix(X1des, sparse=TRUE) # convert into sparse matrix
-
-    ## if(!is(X1, "sparseMatrix")) 
-    # X1 <- Matrix(X1, sparse=TRUE) # convert into sparse matrix
-    # X1des <- X1[as.numeric(id), ] 
-    # X1des[ind0] <- 0    
     
   }else{ # small matrices: do not use Matrix
-    #    if(args$format == "wide"){
-    #      ### expand the design matrix for all observations (yind is equal for all observations!)
-    #      ### the response is a vector (y1(t1), y2(t1), ... , yn(t1), yn(tG))
-    #      X1des <- X1[rep(1:nobs, times=length(yind)), ]
-    #    } else{ # yind is over all observations in long format
+    
     X1des <- X1[id, ] 
-    #    }
     X1des[ind0] <- 0
+    
   }
   
   ## set up matrix with adequate integration and standardization weights
@@ -283,12 +230,7 @@ X_histx <- function(mf, vary, args) {
                                         fun = "bsplines"),
                "linear" = matrix(c(rep(1, length(yind)), yind), ncol=2),
                "constant"=  matrix(c(rep(1, length(yind))), ncol=1))
-  
-  #   # stack design-matrix of response nobs times in wide format
-  #   if(args$format == "wide"){
-  #     Bt <- Bt[rep(1:length(yind), each=nobs), ]
-  #   }
-  
+
   if(! mboost_intern(Bt, fun = "isMATRIX") ) Bt <- matrix(Bt, ncol=1)
   
   # calculate row-tensor
@@ -305,7 +247,7 @@ X_histx <- function(mf, vary, args) {
     K1 <- diff(diag(ncol(Bs)), differences = args$differences)
     K1 <- crossprod(K1)    
     if(args$penalty == "pss"){
-      # <FIXME> allow for variable shrinkage parameter in penalty_pss()? 
+      # instead of using 0.1, allow for flexible shrinkage parameter in penalty_pss()? 
       K1 <- penalty_pss(K = K1, difference = args$difference, shrink = 0.1)
     }    
   }else{ # Ridge-penalty
@@ -359,7 +301,8 @@ X_histx <- function(mf, vary, args) {
 #' Base-learners for Functional Covariates
 #' 
 #' Base-learners that fit historical functional effects that can be used with the 
-#' tensor product, as e.g., hbistx(...) \%X\% bolsc(...).  
+#' tensor product, as, e.g., \code{hbistx(...) \%X\% bolsc(...)}, to form interaction 
+#' effects (Ruegamer et al., 2016).  
 #' For expert use only! May show unexpected behavior  
 #' compared to other base-learners for functional data!
 #' 
@@ -383,7 +326,7 @@ X_histx <- function(mf, vary, args) {
 #' for \code{penalty="pss"} the penalty matrix is transformed to have full rank, 
 #' so called shrinkage approach by Marra and Wood (2011)
 #' @param check.ident use checks for identifiability of the effect, based on Scheipl and Greven (2016); 
-#'   see Brockhaus et al. (2016) for identifiability checks that take into account the integration limits
+#' see Brockhaus et al. (2017) for identifiability checks that take into account the integration limits
 #' @param standard the historical effect can be standardized with a factor. 
 #' "no" means no standardization, "time" standardizes with the current value of time and 
 #' "lenght" standardizes with the lenght of the integral 
@@ -409,6 +352,8 @@ X_histx <- function(mf, vary, args) {
 #' where \eqn{T1} is the minimal index of \eqn{t} of the response \eqn{Y(t)}. 
 #' \code{bhistx} can only be used if \eqn{Y(t)} and \eqn{x(s)} are observd over
 #' the same domain \eqn{s,t \in [T1, T2]}. 
+#' The base-learner \code{bhistx} can be used to set up complex interaction effects 
+#' like factor-specific historical  effects as discussed in Ruegamer et al. (2016). 
 #' 
 #' Note that the data has to be supplied as a \code{hmatrix} object for 
 #' model fit and predictions. 
@@ -422,16 +367,22 @@ X_histx <- function(mf, vary, args) {
 #' \code{bl} (base-learner) with a \code{fit} function. The call to 
 #' \code{fit} finally returns an object of class \code{bm} (base-model).
 #' 
-#' @seealso \code{\link{FDboost}} for the model fit. 
+#' @seealso \code{\link{FDboost}} for the model fit and \code{\link{bhist}} 
+#' for simple hisotorical effects. 
+#'  
 #' @keywords models
 #' 
 #' @references 
-#' Brockhaus, S., Melcher, M., Leisch, F. and Greven, S. (2016): 
-#' Boosting flexible functional regression models with a high number of functional historical effects, 
-#' Statistics and Computing, accepted. 
+#' Brockhaus, S., Melcher, M., Leisch, F. and Greven, S. (2017): 
+#' Boosting flexible functional regression models with a high number of functional historical effects,  
+#' Statistics and Computing, 27(4), 913-926. 
 #' 
 #' Marra, G. and Wood, S.N. (2011): Practical variable selection for generalized additive models. 
 #' Computational Statistics & Data Analysis, 55, 2372-2387.
+#' 
+#' Ruegamer D., Brockhaus, S., Gentsch K., Scherer, K., Greven, S. (2016). Detecting synchronisation in 
+#' EEG- and EMG-Signals via boosted functional historical models. 
+#' \url{http://arxiv.org/abs/1609.06070}
 #' 
 #' Scheipl, F., Staicu, A.-M. and Greven, S. (2015): 
 #' Functional Additive Mixed Models, Journal of Computational and Graphical Statistics, 24(2), 477-501.

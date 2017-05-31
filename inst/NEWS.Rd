@@ -1,6 +1,41 @@
 \name{NEWS}
 \title{News for Package 'FDboost'}
 
+\section{Changes in FDboost version 0.3-0 (2017-05-31)}{
+    \subsection{User-visible changes}{
+    \itemize{
+    \item new function \code{bootstrapCI()} to compute bootstrapped coefficients 
+    \item add the dataset 'emotion' containing EEG and EMG measures under different experimental conditions
+    \item with scalar response, \code{FDboost()} works with the response as 
+          vector and not as matrix with one row; 
+          thus, \code{fitted()} and \code{predict()} return a vector 
+    }
+  }
+  \subsection{Bug-fixes}{
+    \itemize{
+    \item \code{update.FDboost()} works now with scalar response 
+    \item \code{FDboost()} works with family \code{Binomial(type = "glm")}, 
+          see isssue \href{https://github.com/boost-R/FDboost/issues/1}{#1} 
+    \item \code{applyFolds()} works for factor response, 
+          see issue \href{https://github.com/boost-R/FDboost/issues/7}{#7}
+    \item \code{cvLong} and \code{cvMA} return a matrix for only one resampling 
+           fold with \code{B = 1} (proposed by Almond Stoecker)
+    }
+    }
+   \subsection{Miscellaneous}{
+    \itemize{
+	  \item adapt \pkg{FDboost} to \pkg{mboost} 2.8-0 that allows for mstop = 0
+	  \item restructure FDboostLSS() such that it calls mboostLSS_fit() from \pkg{gamboostLSS} 2.0-0  
+	  \item in \pkg{FDboost}, set \code{options("mboost_indexmin" = +Inf)} to disable the 
+	        internal use of ties in model fitting, as this breaks some methods for models with response 
+	        in long format and for models containing \code{bhsitx}, 
+	        see issue \href{https://github.com/boost-R/FDboost/issues/10}{#10}
+	  \item deprecate \code{validateFDboost()}, 
+	        use \code{applyFolds()} and \code{bootstrapCI()} instead
+    }
+  }
+}
+
 
 \section{Changes in FDboost version 0.2-0 (2016-05-26)}{
     \subsection{User-visible changes}{
@@ -24,7 +59,7 @@
     }
     \subsection{User-visible changes}{
     \itemize{
-    \item add function %Xa0% that computes a row-tensor product of two base-learners where 
+    \item add function \%Xa0\% that computes a row-tensor product of two base-learners where 
           the penalty in one direction is zero  
     \item add function reweightData() that computes the data for Bootstrap or cross-falidation folds
 	  \item add function stabsel.FDboost() that refits the smooth offset in each fold  
@@ -50,7 +85,7 @@
   }
     \subsection{Miscellaneous}{
     \itemize{
-	  \item plot.FDboost() works for more effects, especially for effects like bolsc() %X% bhistx()  		 
+	  \item plot.FDboost() works for more effects, especially for effects like bolsc() \%X\% bhistx()  		 
     }
   }
 }
@@ -59,7 +94,7 @@
 \section{Changes in FDboost version 0.1-0 (2016-03-10)}{
   \subsection{User-visible changes}{
     \itemize{
-	    \item new operator %A0% for Kronecker product of two base-learners with 
+	    \item new operator \%A0\% for Kronecker product of two base-learners with 
 		      anisotropic penalty for the special case where lambda1 or lambda2 is zero 
 	    \item the base-learner bbsc() can be used with center = TRUE, derived by Almond Stoecker 
 		\item in FDboostLSS() a list of one-sided formulas can be specified for timeformula  	
@@ -72,7 +107,7 @@
   }
   \subsection{Miscellaneous}{
     \itemize{
-	  \item operator %A% uses weights in model call; only works correctly for weights on level 
+	  \item operator \%A\% uses weights in model call; only works correctly for weights on level 
             of blg1 and blg2 (which is the same as weights on rows and columns of the response matrix)	  
       \item call to internal functions of mboost is done using mboost_intern() 	
       \item hyper_olsc() is based on hyper_ols() of mboost 		 
@@ -83,10 +118,10 @@
 \section{Changes in FDboost version 0.0-17 (2016-02-25)}{
   \subsection{User-visible changes}{
     \itemize{
-	    \item changed the operator %Xc% for row tensor product of two scalar covariates. 
+	    \item changed the operator \%Xc\% for row tensor product of two scalar covariates. 
 		  The design matrix of the interaction effects is constrained such that the interaction is 
 		  centred around the intercept and around the two main effects of the scalar covariates (experimental!);  
-		  use e.g. as bols(x1) %Xc% bols(x2)
+		  use e.g. as bols(x1) \%Xc\% bols(x2)
     }
   }
 }
@@ -94,10 +129,10 @@
 \section{Changes in FDboost version 0.0-16 (2016-02-22)}{
   \subsection{User-visible changes}{
     \itemize{
-	    \item changed the operator %Xc% for row tensor product where the sum-to-zero constraint is applied to
+	    \item changed the operator \%Xc\% for row tensor product where the sum-to-zero constraint is applied to
 		  the design matrix resulting from the row-tensor product (experimental!), 
 		  such that first a, intercept-column is added to the design-matrix and then the sum-to-zero constraint 
-		  is applied, use e.g. as bolsc(x1) %Xc% bolsc(x2)
+		  is applied, use e.g. as bolsc(x1) \%Xc\% bolsc(x2)
 		  \item use the functional index s as argsvals in the FPCA conducted within bfpc()
     }
   }
@@ -106,17 +141,17 @@
 \section{Changes in FDboost version 0.0-15 (2016-02-12)}{
   \subsection{User-visible changes}{
     \itemize{
-	    \item new operator %A% that implies anisotropic penalties for differently specified df in the two base-learners
+	    \item new operator \%A\% that implies anisotropic penalties for differently specified df in the two base-learners
     }
   }
 	\subsection{Bug-fixes}{
     \itemize{
-      \item do not penalize in direction of ONEx in smooth intercept specified implicitly by ~1, as bols(ONEx, intercept=FALSE, df=1) %A% bbs(time)	  
+      \item do not penalize in direction of ONEx in smooth intercept specified implicitly by ~1, as bols(ONEx, intercept=FALSE, df=1) \%A\% bbs(time)	  
     }
   }
    \subsection{Miscellaneous}{
     \itemize{
-      \item do not expand an effect that contains %A% or %O% with the timeformula, allowing for different effects over time for the 
+      \item do not expand an effect that contains \%A\% or \%O\% with the timeformula, allowing for different effects over time for the 
         effects in the model 	  
     }
   }
@@ -127,7 +162,7 @@
     \itemize{
 	    \item add the function FDboostLSS() to fit GAMLSS models with functional data 
 		      using R-package gamboostLSS
-	    \item new operator %Xc% for row tensor product where the sum-to-zero constraint is applied to
+	    \item new operator \%Xc\% for row tensor product where the sum-to-zero constraint is applied to
 		  the design matrix resulting from the row-tensor product (experimental!)
 	    \item allow newdata to be a list in predict.FDboost() in combination with signal base-learners 
         \item expand coef.FDboost() such that it works for 3-dimensional tensor products
@@ -156,8 +191,8 @@
 	\item in function FDboost() the offset is supplied differently, for a scalar offset, use offset = "scalar", the default is still the same offset=NULL
 	\item predict.FDboost() has new argument toFDboost (logical)
 	\item fitted.FDboost() has argument toFDboost explicitly and not only in ...
-    \item new base-learner bhistx() especially suited for effects with %X%, like bhistx %X% bolsc 
-    \item coef.FDboost() and plot.FDboost() suited for effects like bhistx %X% bolsc
+    \item new base-learner bhistx() especially suited for effects with \%X\%, like bhistx \%X\% bolsc 
+    \item coef.FDboost() and plot.FDboost() suited for effects like bhistx \%X\% bolsc
     \item for predict.FDboost() with effects bhistx() and newdata the latest mboostPatch is necessary
     }
   }

@@ -643,11 +643,10 @@ check_ident <- function(X1, L, Bs, K, xname, penalty,
   #  warning("<k> (" , bsdim , ") larger than effective rank of <", xname, "> (", maxK, "). ", 
   #          "Effect identifiable only through penalty.")
   #}
-  ## <FIXME> automatically use less basis-functions in case of problems?
+  ## automatically use less basis-functions in case of problems?
   ## you would have to change args$knots accordingly
   
   ### compute condition number of Ds^t Ds
-  ### <FIXME> possibel to use argument stand here?
   Ds <- (X1 * L) %*% Bs
   DstDs <- crossprod(Ds)
   e_DstDs <- try(eigen(DstDs))
@@ -750,7 +749,7 @@ check_ident <- function(X1, L, Bs, K, xname, penalty,
   ### overlap measure of Larsson and Villani 2001
   ### as proposed by Scheipl and Greven 2015
   getOverlap <- function(subset, X1, L, Bs, K){
-    # <FIXME> case that all observations are 0, kernel is everything -> kernel overlap
+    # In the case that all observations are 0, kernel is everything -> kernel overlap
     if(all(X1[ , subset]==0)){
       return(5)
     }
@@ -871,7 +870,7 @@ getDiags <- function(m, data, bl=2, cut=.995){
     Ps <- get("args", environment(m$baselearner[[bl]]$dpp))$K1
     
     D <- extract(m, "design", which=bl)[[1]]
-    ### <FIXME> multiply the penalty matrix with the corresponding lambda??
+    ### multiply the penalty matrix with the corresponding lambda??
     ### should be irrelevant for boosting, as there is only one lambda in both directions
     P <- extract(m, "penalty", which=bl)[[1]]
     # P <- extract(m, "lambda")[[bl]]

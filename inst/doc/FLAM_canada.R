@@ -1,14 +1,8 @@
-### R code from vignette source 'FLAM_canada.Rnw'
-
-###################################################
-### code chunk number 1: pkg-attach
-###################################################
+## ----pkg-attach, echo = FALSE, warning=FALSE, message=FALSE--------------
+# Load FDboost package
 library(FDboost)
 
-
-###################################################
-### code chunk number 2: load-data
-###################################################
+## ----load-data, echo = TRUE, warning=FALSE, message=FALSE----------------
 library(fda)
 data("CanadianWeather", package = "fda")
 
@@ -33,39 +27,33 @@ dataM$temp <- sweep(dataM$temp, 2, colMeans(dataM$temp))
 dataM$month.t <- 1:12
 dataM$month.s <- 1:12
 
+## ----plot-data, echo=TRUE, fig.cap='Monthly average temperature and log-precipitation at 35 locations in Canada. Regions are coded by colors and different line types.', fig.height=5, fig.width=10, fig.pos='!htbp'----
 
-###################################################
-### code chunk number 3: plot-data
-###################################################
-#pdf("CanadaDesk.pdf")
-#par(mfrow=c(1,2), mar=c(3,3,1,1), cex=1.5)
 par(mfrow=c(1,2))
 
 # plot precipitation
 with(dataM, {
-  matplot(t(l10precip), type = "l", lty = as.numeric(region), col = as.numeric(region),
+  matplot(t(l10precip), type = "l", lty = as.numeric(region), 
+          col = as.numeric(region),
           xlab = "", ylab = "",
-          ylim = c(-1.2, 1), cex.axis = 1, cex.lab = 1)
+          ylim = c(-1.2, 1))#, cex.axis = 1, cex.lab = 1)
   legend("bottom", col = 1:4, lty = 1:4, legend = levels(region),
          cex = 1, bty = "n")
 })
-mtext("time [month]", 1, line = 2, cex = 1.5)
-mtext("log(precipitation) [mm]", 2, line = 2, cex = 1.5)
+mtext("time [month]", 1, line = 2)#, cex = 1.5)
+mtext("log(precipitation) [mm]", 2, line = 2)#, cex = 1.5)
 
 # plot temperature
 with(dataM, {
-  matplot(t(tempRaw), type = "l", lty = as.numeric(region), col = as.numeric(region),
-          xlab = "", ylab = "", 
-          cex.axis = 1, cex.lab = 1)
+  matplot(t(tempRaw), type = "l", lty = as.numeric(region), 
+          col = as.numeric(region),
+          xlab = "", ylab = "")#, 
+#          cex.axis = 1, cex.lab = 1)
 })
-mtext("time [month]", 1, line = 2, cex = 1.5)
-mtext("temperature [C]", 2, line = 2, cex = 1.5)
-#dev.off()
+mtext("time [month]", 1, line = 2)#, cex = 1.5)
+mtext("temperature [C]", 2, line = 2)#, cex = 1.5)
 
-
-###################################################
-### code chunk number 4: setup-model
-###################################################
+## ----setup-model, echo = TRUE, message=FALSE, warning=FALSE--------------
 locations <- cbind(dataM$lon, dataM$lat)
 ### fix location names s.t. they correspond to levels in places
 rownames(locations) <- as.character(dataM$place)
@@ -107,10 +95,7 @@ if(FALSE){
 #   print("Residuals are uncorrelated!")
 
 
-
-###################################################
-### code chunk number 5: fit-model
-###################################################
+## ----fit-model, echo = TRUE, message=FALSE-------------------------------
 # use bolsc() base-learner with precision matrix as penalty matrix
 set.seed(210114)
 mod3 <- FDboost(l10precip ~ bols(region, df = 2.5, contrasts.arg = "contr.dummy") 
@@ -122,28 +107,19 @@ mod3 <- FDboost(l10precip ~ bols(region, df = 2.5, contrasts.arg = "contr.dummy"
                 offset="scalar", offset_control = o_control(k_min = 5), 
                 data=dataM)
 
-
-###################################################
-### code chunk number 6: cv-bootstrap0
-###################################################
+## ----cv-bootstrap0, eval = TRUE------------------------------------------
 mod3 <- mod3[47]
 
+## ----cv-bootstrap, eval = FALSE------------------------------------------
+#  set.seed(2303)
+#  folds <- cvMa(ydim = mod3$ydim, type = "bootstrap", B = 25)
+#  cvMod3 <- cvrisk(mod3, grid = seq(1, 1000, by=1), folds = folds, mc.cores = 10)
+#  mod3 <- mod3[mstop(cvMod3)] # 47
+#  # summary(mod3)
 
-###################################################
-### code chunk number 7: cv-bootstrap (eval = FALSE)
-###################################################
-## set.seed(2303)
-## folds <- cvMa(ydim = mod3$ydim, type = "bootstrap", B = 25) 
-## cvMod3 <- cvrisk(mod3, grid = seq(1, 1000, by=1), folds = folds, mc.cores = 10) 
-## mod3 <- mod3[mstop(cvMod3)] # 47
-## # summary(mod3)
+## ----plot-bootstrap-model1a, echo = TRUE, fig.cap='Coefficients for model with 49 boosting iterations (determinded by 25 fold bootstrap). The estimated coefficients for the four climatic regions are plotted with color coded regions (left panel).  The coefficient function for the functional effect of temperature is colored in red for positive values and in blue for negative values (right panel).', fig.pos='!htbp', fig.height=5, fig.width=10----
 
-
-###################################################
-### code chunk number 8: plot-bootstrap-model1a
-###################################################
-pdf("modCanada3.pdf")
-par(mar = c(4,4,2,1), cex = 1.5, cex.main = 0.9)
+par(mfrow=c(1,2))#, mar = c(7,4,7,1))#, cex = 1.5, cex.main = 0.9)
 predRegion <- predict(mod3, which = 1, 
                       newdata = list(region = factor(c("Arctic", "Atlantic",
                                                    "Continental", "Pacific")),
@@ -151,41 +127,31 @@ predRegion <- predict(mod3, which = 1,
 matplot(seq(1, 12, l = 20), t(predRegion), col = 1:4, 
         type = "l", lwd = 2, lty = 1:4,
         main = "region", ylab = "", xlab = "")
-mtext("t, time [month]", 1, line = 2, cex = 1.5)
+mtext("t, time [month]", 1, line = 2)#, cex = 1.5)
 
 legend("bottom", lty = 1:4, legend = levels(dataM$region), col = 1:4, bty = "n", lwd = 2)
 
 ## plot the effect of temperature
+# par(mar = c(4,4,7,1))
 plot(mod3, which = 2, pers = TRUE, main = "temperature", zlab = "",
      xlab = "s, time [month]", ylab = "t, time [month]")
-dev.off()
 
-
-###################################################
-### code chunk number 9: cv-curves0
-###################################################
+## ----cv-curves0, echo = TRUE---------------------------------------------
 mod3 <- mod3[750]
 
+## ----cv-curves, eval = FALSE---------------------------------------------
+#  set.seed(143)
+#  folds <- cvMa(ydim = mod3$ydim, type = "curves")
+#  cvMod3curves <- cvrisk(mod3, grid = seq(1, 1000, by = 1), folds = folds, mc.cores = 12)
+#  
+#  ## optimal stopping iteration in terms of mean
+#  mstop(cvMod3curves)
+#  ## optimal stopping iteration in terms of median
+#  (mStop <- which.min(apply(cvMod3curves, 2, median)) )
+#  mod3 <- mod3[mStop]
 
-###################################################
-### code chunk number 10: cv-curves (eval = FALSE)
-###################################################
-## set.seed(143)
-## folds <- cvMa(ydim = mod3$ydim, type = "curves")
-## cvMod3curves <- cvrisk(mod3, grid = seq(1, 1000, by = 1), folds = folds, mc.cores = 12)
-## 
-## ## optimal stopping iteration in terms of mean
-## mstop(cvMod3curves)
-## ## optimal stopping iteration in terms of median
-## (mStop <- which.min(apply(cvMod3curves, 2, median)) )
-## mod3 <- mod3[mStop]
-
-
-###################################################
-### code chunk number 11: plot-bootstrap-model1b
-###################################################
-pdf("modCanada3curves.pdf")
-par(mar=c(4,4,2,1), cex = 1.5, cex.main = 0.9)
+## ----plot-bootstrap-model1b, echo = TRUE, fig.cap='Coefficients for model with 750 boosting iterations (determinded by leaving-one-curve-out cross-validation). The estimated coefficients for the four climatic regions are plotted with color coded regions (left panel).  The coefficient function for the functional effect of temperature is colored in red for positive values and in blue for negative values (right panel).', fig.pos='!htbp', fig.height=5, fig.width=10----
+par(mfrow=c(1,2))
 predRegion <- predict(mod3, which=1, 
                       newdata = list(region = factor(c("Arctic", "Atlantic",
                                                    "Continental", "Pacific")),
@@ -193,19 +159,15 @@ predRegion <- predict(mod3, which=1,
 matplot(seq(1, 12, l=20), t(predRegion), col = 1:4, 
         type = "l", lwd = 2, lty = 1:4,
         main = "region", ylab = "", xlab = "")
-mtext("t, time [month]", 1, line = 2, cex = 1.5)
+mtext("t, time [month]", 1, line = 2)#, cex = 1.5)
 #plot(mod, which=1, lwd=2, lty=1, col=c(2,3,4,1))
 legend("bottom", lty = 1:4, legend = levels(dataM$region), col = 1:4, bty = "n", lwd = 2)
 
 ## plot the effect of temperature
 plot(mod3, which = 2, pers = TRUE, main = "temperature", zlab = "",
      xlab = "s, time [month]", ylab = "t, time [month]")
-dev.off()
 
-
-###################################################
-### code chunk number 12: plot-bootstrap-model2
-###################################################
+## ----plot-bootstrap-model2_prep, echo = TRUE-----------------------------
 ord <- c("Dawson", "Whitehorse", "Yellowknife", "Uranium City", "Churchill",
          "Edmonton",  "Pr. Albert", "The Pas", "Calgary", "Regina", "Winnipeg",
          "Thunder Bay",
@@ -224,11 +186,7 @@ regionOrd <- dataM$region[ind]
 fit3 <- (predict(mod3))[ind, ] 
 response <- dataM$l10precip[ind, ]
 
-
-###################################################
-### code chunk number 13: plot-bootstrap-model2
-###################################################
-pdf("modCanada3resiCurves.pdf", width=7, height=10)
+## ----plot-bootstrap-model2, echo = TRUE, fig.cap='The estimated smooth spatially correlated residual curves (lines) and the residuals (circles) are plotted with regions color-coded. The locations of the weather stations are given in the map at the bottom.', warning=FALSE, message=FALSE, fig.height=9.5----
 par(mar = c(2.55, 2.05, 2.05, 1.05), oma=c(0, 0, 0, 0))
 layout(rbind(matrix(1:36, 6, 6), rep(37, 6), rep(37, 6)))
 for(i in 1:35) {
@@ -252,6 +210,4 @@ if(require(maps) & require(mapdata)){
        labels = as.character(i), cex = 0.8)
  }
 }
-dev.off()
-
 
