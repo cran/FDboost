@@ -4,9 +4,16 @@
 \alias{FDboostLSS}
 \title{Model-based Gradient Boosting for Functional GAMLSS}
 \usage{
-FDboostLSS(formula, timeformula, data = list(), families = GaussianLSS(),
-  control = boost_control(), weights = NULL, method = c("cyclic",
-  "noncyclic"), ...)
+FDboostLSS(
+  formula,
+  timeformula,
+  data = list(),
+  families = GaussianLSS(),
+  control = boost_control(),
+  weights = NULL,
+  method = c("cyclic", "noncyclic"),
+  ...
+)
 }
 \arguments{
 \item{formula}{a symbolic description of the model to be fit. 
@@ -26,11 +33,11 @@ a named list of one-sided formulas.}
 
 \item{families}{an object of class \code{families}. It can be either one of the pre-defined distributions 
 that come along with the package \code{gamboostLSS} or a new distribution specified by the user 
-(see \code{\link[gamboostLSS]{Families}} for details). 
-Per default, the two-parametric \code{\link[gamboostLSS]{GaussianLSS}} family is used.}
+(see \code{\link{Families}} for details). 
+Per default, the two-parametric \code{\link{GaussianLSS}} family is used.}
 
 \item{control}{a list of parameters controlling the algorithm. 
-For more details see \code{\link[mboost]{boost_control}}.}
+For more details see \code{\link{boost_control}}.}
 
 \item{weights}{does not work!}
 
@@ -135,7 +142,11 @@ Journal of the Royal Statistical Society: Series C (Applied Statistics), 54(3), 
 Thomas, J., Mayr, A., Bischl, B., Schmid, M., Smith, A., and Hofner, B. (2018), 
 Gradient boosting for distributional regression - faster tuning and improved 
 variable selection via noncyclical updates. 
-Statistics and Computing, 28, 673-687.
+Statistics and Computing, 28, 673-687. 
+
+Stoecker, A., Brockhaus, S., Schaffer, S., von Bronk, B., Opitz, M., and Greven, S. (2019): 
+Boosting Functional Response Models for Location, Scale and Shape with an Application to Bacterial Competition. 
+\url{https://arxiv.org/abs/1809.09881}
 }
 \seealso{
 Note that \code{FDboostLSS} calls \code{\link{FDboost}} directly.
@@ -143,5 +154,7 @@ Note that \code{FDboostLSS} calls \code{\link{FDboost}} directly.
 \author{
 Sarah Brockhaus
 }
-\keyword{models,}
+\keyword{models}
 \keyword{nonlinear}
+\keyword{regression}
+\keyword{smooth}

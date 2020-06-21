@@ -10,21 +10,21 @@
 #' @param showProgress logical, defaults to \code{TRUE}.
 #' @param compress logical, defaults to \code{FALSE}. Only used to force a meaningful
 #' behaviour of \code{applyFolds} with hmatrix objects when using nested resampling.
-#' @param papply (parallel) apply function, defaults to \code{\link[parallel]{mclapply}}, 
-#' see \code{\link[mboost]{cvrisk}} for details.  
+#' @param papply (parallel) apply function, defaults to \code{\link{mclapply}} from 
+#' R package \code{parallel}, see \code{\link[mboost]{cvrisk}} for details.  
 #' @param fun if \code{fun} is \code{NULL}, the out-of-bag risk is returned. 
 #' \code{fun}, as a function of \code{object}, 
 #' may extract any other characteristic of the cross-validated models. These are returned as is.
 #' @param riskFun only exists in \code{applyFolds}; allows to compute other risk functions than the risk 
 #' of the family that was specified in object. 
 #' Must be specified as function of arguments \code{(y, f, w = 1)}, where \code{y} is the 
-#' observed response, \code{f} is the prediciton from the model and \code{w} is the weight. 
-#' The risk function must return a scalar numeric value for vector valued imput.  
+#' observed response, \code{f} is the prediction from the model and \code{w} is the weight. 
+#' The risk function must return a scalar numeric value for vector valued input.  
 #' @param numInt only exists in \code{applyFolds}; the scheme for numerical integration, 
 #' see \code{numInt} in \code{\link{FDboost}}. 
-#' @param mc.preschedule Defaults to \code{FALSE}. Preschedule tasks if are parallelized using \code{mclapply}?  
-#' For details see \code{\link[parallel]{mclapply}}. 
-#' @param ... further arguments passed to \code{\link[parallel]{mclapply}} 
+#' @param mc.preschedule Defaults to \code{FALSE}. Preschedule tasks if they are parallelized using \code{mclapply}.   
+#' For details see \code{\link{mclapply}}. 
+#' @param ... further arguments passed to the (parallel) apply function. 
 #' 
 #' @param id the id-vector as integers 1, 2, ... specifying which observations belong to the same curve, 
 #' deprecated in \code{cvMa()}. 
@@ -42,7 +42,7 @@
 #' 
 #' @details The number of boosting iterations is an important hyper-parameter of boosting.   
 #' It be chosen using the functions \code{applyFolds} or \code{cvrisk.FDboost}. Those functions 
-#' they compute honest, i.e., out-of-bag, estimates of the empirical risk for different 
+#' compute honest, i.e., out-of-bag, estimates of the empirical risk for different 
 #' numbers of boosting iterations. 
 #' The weights (zero weights correspond to test cases) are defined via the folds matrix, 
 #' see \code{\link[mboost]{cvrisk}} in package mboost. 
@@ -576,7 +576,7 @@ applyFolds <- function(object, folds = cv(rep(1, length(unique(object$id))), typ
 #' \code{fun}, as a function of \code{object}, 
 #' may extract any other characteristic of the cross-validated models. These are returned as is.
 #' 
-#' @param ... further arguments passed to \code{\link[parallel]{mclapply}} 
+#' @param ... further arguments passed to \code{\link{mclapply}} 
 #' 
 #' @details The number of boosting iterations is an important hyper-parameter of boosting  
 #' and can be chosen using the function \code{validateFDboost} as they compute

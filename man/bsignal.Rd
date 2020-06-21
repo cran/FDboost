@@ -5,28 +5,72 @@
 \alias{bconcurrent}
 \alias{bhist}
 \alias{bfpc}
-\alias{bconcurrent}
-\alias{bhist}
-\alias{bfpc}
 \title{Base-learners for Functional Covariates}
 \usage{
-bsignal(x, s, index = NULL, inS = c("smooth", "linear", "constant"),
-  knots = 10, boundary.knots = NULL, degree = 3, differences = 1,
-  df = 4, lambda = NULL, center = FALSE, cyclic = FALSE, Z = NULL,
-  penalty = c("ps", "pss"), check.ident = FALSE)
+bsignal(
+  x,
+  s,
+  index = NULL,
+  inS = c("smooth", "linear", "constant"),
+  knots = 10,
+  boundary.knots = NULL,
+  degree = 3,
+  differences = 1,
+  df = 4,
+  lambda = NULL,
+  center = FALSE,
+  cyclic = FALSE,
+  Z = NULL,
+  penalty = c("ps", "pss"),
+  check.ident = FALSE
+)
 
-bconcurrent(x, s, time, index = NULL, knots = 10, boundary.knots = NULL,
-  degree = 3, differences = 1, df = 4, lambda = NULL, cyclic = FALSE)
+bconcurrent(
+  x,
+  s,
+  time,
+  index = NULL,
+  knots = 10,
+  boundary.knots = NULL,
+  degree = 3,
+  differences = 1,
+  df = 4,
+  lambda = NULL,
+  cyclic = FALSE
+)
 
-bhist(x, s, time, index = NULL, limits = "s<=t", standard = c("no",
-  "time", "length"), intFun = integrationWeightsLeft, inS = c("smooth",
-  "linear", "constant"), inTime = c("smooth", "linear", "constant"),
-  knots = 10, boundary.knots = NULL, degree = 3, differences = 1,
-  df = 4, lambda = NULL, penalty = c("ps", "pss"), check.ident = FALSE)
+bhist(
+  x,
+  s,
+  time,
+  index = NULL,
+  limits = "s<=t",
+  standard = c("no", "time", "length"),
+  intFun = integrationWeightsLeft,
+  inS = c("smooth", "linear", "constant"),
+  inTime = c("smooth", "linear", "constant"),
+  knots = 10,
+  boundary.knots = NULL,
+  degree = 3,
+  differences = 1,
+  df = 4,
+  lambda = NULL,
+  penalty = c("ps", "pss"),
+  check.ident = FALSE
+)
 
-bfpc(x, s, index = NULL, df = 4, lambda = NULL, penalty = c("identity",
-  "inverse", "no"), pve = 0.99, npc = NULL, npc.max = 15,
-  getEigen = TRUE)
+bfpc(
+  x,
+  s,
+  index = NULL,
+  df = 4,
+  lambda = NULL,
+  penalty = c("identity", "inverse", "no"),
+  pve = 0.99,
+  npc = NULL,
+  npc.max = 15,
+  getEigen = TRUE
+)
 }
 \arguments{
 \item{x}{matrix of functional variable x(s). The functional covariate has to be 
@@ -43,7 +87,7 @@ where index is an integer of length greater or equal to \code{NROW(x)}.}
 which is the index of the functional covariates x(s).}
 
 \item{knots}{either the number of knots or a vector of the positions 
-of the interior knots (for more details see \code{\link[mboost]{bbs}}).}
+of the interior knots (for more details see \code{\link[mboost:baselearners]{bbs}}).}
 
 \item{boundary.knots}{boundary points at which to anchor the B-spline basis 
 (default the range of the data). A vector (of length 2) 
@@ -61,13 +105,13 @@ large amount of smoothing and thus to "weaker" base-learners.}
 
 \item{lambda}{smoothing parameter of the penalty, computed from \code{df} when \code{df} is specified.}
 
-\item{center}{See \code{\link[mboost]{bbs}}. 
+\item{center}{See \code{\link[mboost:baselearners]{bbs}}. 
 The effect is re-parameterized such that the unpenalized part of the fit is subtracted and only 
 the penalized effect is fitted, using a spectral decomposition of the penalty matrix.  
 The unpenalized, parametric part has then to be included in separate 
 base-learners using \code{bsignal(..., inS = 'constant')} or \code{bsignal(..., inS = 'linear')} 
 for first (\code{difference = 1}) and second (\code{difference = 2}) order difference penalty respectively. 
-See the help on the argument \code{center} of \code{\link[mboost]{bbs}}.}
+See the help on the argument \code{center} of \code{\link[mboost:baselearners]{bbs}}.}
 
 \item{cyclic}{if \code{cyclic = TRUE} the fitted coefficient function coincides at the boundaries 
 (useful for cyclic covariates such as day time etc.).}
@@ -211,7 +255,7 @@ if(require(refund)){
 
 #########
 # model with linear functional effect, use bsignal()
-# Y(t) = f(t) + \\int X1(s)\\beta(s,t)ds + eps
+# Y(t) = f(t) + \int X1(s)\beta(s,t)ds + eps
 set.seed(2121)
 data1 <- pffrSim(scenario = "ff", n = 40)
 data1$X1 <- scale(data1$X1, scale = FALSE)
@@ -245,7 +289,7 @@ m1_pffr <- pffr(Y ~ ff(X1, xind = s), yind = t, data = data1)
 
 ############################################
 # model with functional historical effect, use bhist() 
-# Y(t) = f(t)  + \\int_0^t X1(s)\\beta(s,t)ds + eps
+# Y(t) = f(t)  + \int_0^t X1(s)\beta(s,t)ds + eps
 set.seed(2121)
 mylimits <- function(s, t){
   (s < t) | (s == t)

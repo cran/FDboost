@@ -5,7 +5,7 @@
 #' are utilized as base-learners in the case of functional responses. 
 #' Scalar responses are treated as the special case where each functional response has 
 #' only one observation. 
-#' This function is a wrapper for \code{mboost}'s \code{\link[mboost]{mboost}} and its 
+#' This function is a wrapper for \code{mboost}'s \code{\link{mboost}} and its 
 #' siblings to fit models of the general form 
 #' \deqn{\xi(Y_i(t) | X_i = x_i) = \sum_{j} h_j(x_i, t), i = 1, ..., N,} 
 #' with a functional (but not necessarily continuous) response \eqn{Y(t)}, 
@@ -43,7 +43,7 @@
 #' @param weights only for internal use to specify resampling weights;
 #' per default all weights are equal to 1. 
 #' @param offset_control parameters for the estimation of the offset, 
-#' defaults to \code{o_control(k_min = 20, silent = TRUE)}, see \code{\link{o_control}}.  
+#' defaults to \code{o_control()}, see \code{\link{o_control}}.  
 #' @param offset a numeric vector to be used as offset over the index of the response (optional).
 #' If no offset is specified, per default \code{offset = NULL} which means that a 
 #' smooth time-specific offset is computed and used before the model fit to center the data. 
@@ -52,7 +52,7 @@
 #' @param check0 logical, for response in matrix form, i.e. response that is observed on a common grid, 
 #' check the fitted effects for the sum-to-zero constraint 
 #' \eqn{h_j(x_i)(t) = 0} for all \eqn{t} and give a warning if it is not fulfilled. Defaults to \code{FALSE}. 
-#' @param ... additional arguments passed to \code{\link[mboost]{mboost}}, 
+#' @param ... additional arguments passed to \code{\link{mboost}}, 
 #' including, \code{family} and \code{control}.
 #' 
 #' @details In matrix representation of functional response and covariates each row 
@@ -63,12 +63,12 @@
 #' 
 #' If it is possible to represent the model as a generalized linear array model 
 #' (Currie et al., 2006), the array structure is used for an efficient implementation, 
-#' see \code{\link[mboost]{mboost}}. This is only possible if the design 
+#' see \code{\link{mboost}}. This is only possible if the design 
 #' matrix can be written as the Kronecker product of two marginal design 
 #' matrices yielding a functional linear array model (FLAM), 
 #' see Brockhaus et al. (2015) for details. 
 #' The Kronecker product of two marginal bases is implemented in R-package mboost 
-#' in the function \code{\%O\%}, see \code{\link[mboost]{\%O\%}}. 
+#' in the function \code{\%O\%}, see \code{\link[mboost:baselearners]{\%O\%}}. 
 #' 
 #' When \code{\%O\%} is called with a specification of \code{df} in both base-learners, 
 #' e.g., \code{bbs(x1, df = df1) \%O\% bbs(t, df = df2)}, the global \code{df} for the 
@@ -86,26 +86,27 @@
 #' In this case the base-learners are built as row tensor-products of marginal base-learners, 
 #' see Scheipl et al. (2015) and Brockhaus et al. (2017), for details on how to set up the effects. 
 #' The row tensor product of two marginal bases is implemented in R-package mboost 
-#' in the function \code{\%X\%}, see \code{\link[mboost]{\%X\%}}. 
+#' in the function \code{\%X\%}, see \code{\link[mboost:baselearners]{\%X\%}}. 
 #' 
 #' A scalar response can be seen as special case of a functional response with only
 #' one time-point, and thus it can be represented as FLAM with basis 1 in 
 #' time-direction, use \code{timeformula = ~bols(1)}. In this case, a penalty in the 
 #' time-direction is used, see Brockhaus et al. (2015) for details.  
 #' Alternatively, the scalar response is fitted as scalar response, like in the function
-#' \code{\link[mboost]{mboost}} in package mboost. 
+#' \code{\link{mboost}} in package mboost. 
 #' The advantage of using \code{FDboost} in that case 
 #' is that methods for the functional base-learners are available, e.g., \code{plot}. 
 #' 
 #' The desired regression type is specified by the \code{family}-argument, 
-#' see the help-page of \code{\link[mboost]{mboost}}. For example a mean regression model is obtained by  
+#' see the help-page of \code{\link{mboost}}. For example a mean regression model is obtained by  
 #' \code{family = Gaussian()} which is the default or median regression 
 #' by \code{family = QuantReg()}; 
 #' see \code{\link[mboost]{Family}} for a list of implemented families. 
 #' 
 #' With \code{FDboost} the following covariate effects can be estimated by specifying 
 #' the following effects in the \code{formula}
-#' (similar to function \code{\link[refund]{pffr}} in R-package \code{\link[refund]{refund}}). 
+#' (similar to function \code{\link[refund]{pffr}} 
+#' in R-package \code{\link[refund:refund-package]{refund}}). 
 #' The \code{timeformula} is used to expand the effects in \code{t}-direction. 
 #' \itemize{
 #' \item Linear functional effect of scalar (numeric or factor) covariate \eqn{z} that varies 
@@ -160,7 +161,7 @@
 #' For base-learners with rank-deficient penalty, it is not possible to specify df smaller than the 
 #' rank of the null space of the penalty (e.g., in \code{bbs} unpenalized part of P-splines). 
 #' The df of the base-learners in an FDboost-object can be checked using \code{extract(object, "df")}, 
-#' see \code{\link[mboost]{extract}}.  
+#' see \code{\link[mboost:methods]{extract}}.  
 #' 
 #' The most important tuning parameter of component-wise gradient boosting 
 #' is the number of boosting iterations. It is recommended to use the number of 
@@ -175,11 +176,10 @@
 #' @return An object of class \code{FDboost} that inherits from \code{mboost}.
 #' Special \code{\link{predict.FDboost}}, \code{\link{coef.FDboost}} and 
 #' \code{\link{plot.FDboost}} methods are available. 
-#' The methods of \code{\link[mboost]{mboost}} are available as well, 
-#' e.g., \code{\link[mboost]{extract}}. 
-#' 
+#' The methods of \code{\link{mboost}} are available as well, 
+#' e.g., \code{\link[mboost:methods]{extract}}. 
 #' The \code{FDboost}-object is a named list containing: 
-#' \item{...}{all elements of an \code{\link[mboost]{mboost}-object}}
+#' \item{...}{all elements of an \code{mboost}-object}
 #' \item{yname}{the name of the response}
 #' \item{ydim}{dimension of the response matrix, if the response is represented as such}
 #' \item{yind}{the observation (time-)points of the response, i.e. the evaluation points, 
@@ -198,11 +198,11 @@
 #' 
 #' @author Sarah Brockhaus, Torsten Hothorn
 #' 
-#' @seealso Note that \link{FDboost} calls \code{\link[mboost]{mboost}} directly.  
+#' @seealso Note that \link{FDboost} calls \code{\link{mboost}} directly.  
 #' See, e.g., \code{\link[FDboost]{bsignal}} and \code{\link[FDboost]{bbsc}} 
 #' for possible base-learners. 
 #' 
-#' @keywords models, nonlinear 
+#' @keywords models regression nonlinear smooth 
 #' 
 #' @references 
 #' Brockhaus, S., Ruegamer, D. and Greven, S. (2017):
@@ -558,15 +558,24 @@ FDboost <- function(formula,          ### response ~ xvars
   if(scalarResponse & numInt != "equal") 
     stop("Integration weights numInt must be set to 'equal' for scalar response.")
   
-  ## extract time from timeformula 
-  yind <- all.vars(timeformula)[[1]]
-  stopifnot(length(yind) == 1)
-  nameyind <- yind
-  assign(yind, data[[yind]])
-  time <- data[[yind]]
-  stopifnot(is.numeric(time))
-  data[[yind]] <- NULL
-  attr(time, "nameyind") <- nameyind
+  ## extract time(s) from timeformula 
+  yind <- all.vars(timeformula)
+  if(length(yind) == 1) {
+    yind <- yind[[1]]
+    nameyind <- yind
+    assign(yind, data[[yind]])
+    time <- data[[yind]]
+    if(!is.numeric(time)) warning("Non-numeric time variable specified. 
+                                'plot' and other convenience functions potentially not designed for that, yet.")
+    data[[yind]] <- NULL
+    attr(time, "nameyind") <- nameyind
+  } else {
+    warning("More than one variable specified in time formula, 
+                                'plot' and other convenience functions potentially not designed for that, yet.")
+    nameyind <- yind
+    for(yind_ in yind) assign(yind_, data[[yind_]])
+    time <- data[yind]
+  }
   
   ### extract covariates
   # data <- as.data.frame(data)
@@ -610,7 +619,9 @@ FDboost <- function(formula,          ### response ~ xvars
       # <SB> dataframe is list and can contain time-points of functional covariates of arbitrary length
       # if (nrow(data) > 0) stopifnot(nrow(response) == nrow(data))
       nr <- nrow(response)
-      stopifnot(ncol(response) == length(time))
+      if(!is.list(time))
+        stopifnot(ncol(response) == length(time)) else
+          stopifnot(all(ncol(response) == sapply(time[sapply(time, is.vector)], length)))
       nc <- ncol(response)
       dresponse <- as.vector(response) # column-wise stacking of response 
       ## convert characters to factor 
@@ -621,7 +632,9 @@ FDboost <- function(formula,          ### response ~ xvars
     }else{
       stopifnot(is.null(dim(response))) ## stopifnot(is.vector(response))
       # check length of response and its time and index
-      stopifnot(length(response) == length(time) & length(response) == length(id))
+      if(is.list(time))
+        stopifnot(all(length(response) == sapply(time, length)) & length(response) == length(id)) else
+          stopifnot(length(response) == length(time) & length(response) == length(id))
       
       if(any(is.na(response))) warning("For non-grid observations the response should not contain missing values.")
       if( !all(sort(unique(id)) == 1:length(unique(id))) ) stop("id has to be integers 1, 2, 3,..., N.")
@@ -708,6 +721,9 @@ FDboost <- function(formula,          ### response ~ xvars
       cfm <- paste("bols(ONEtime, intercept = FALSE, df = ", c_df ,")")
     }
   }
+  
+  # make brackets around timeformula if more than one variable is involved
+  if(length(all.vars(timeformula)) > 1) tfm <- paste("(", tfm, ")")
 
   # expand formula as Kronecker or tensor product 
   if(is.null(id)){
@@ -757,55 +773,61 @@ FDboost <- function(formula,          ### response ~ xvars
 
   ####### find the number of df for each base-learner 
   ## for a fair selection of bl the df must be equal in all bl
-  get_df <- function(bl){
-    split_bl <- unlist(strsplit(bl, split = "%.{1,3}%"))
-    all_df <- c()
-    for(i in 1:length(split_bl)){
-      parti <- parse(text = split_bl[i])[[1]] 
-      parti <- expand.call(definition = get(as.character(parti[[1]])), call = parti)
-      dfi <- parti$df # df of part i in bl 
-      if(is.symbol(dfi) || (!is.numeric(dfi) && is.numeric(eval(dfi)))) dfi <- eval(dfi) 
-      lambdai <- parti$lambda # if lambda is present, df is ignored 
-      if(is.symbol(lambdai)) lambdai <- eval(lambdai)
-      if(!is.null(dfi)){
-        all_df[i] <- dfi 
-      }else{ ## for df = NULL, the value of lambda is used 
-        if(lambdai == 0){
-          all_df[i] <-  NCOL(extract(with(data, eval(parti)), "design"))
-        }else{
-          all_df[i] <- "" ## dont know df 
-        }
-        if(grepl("%X.{0,3}%", bl)){ ## special behaviour of %X%
-          all_df[i] <- 1
-        } 
-      }
-    }
-    if(any(all_df == "")){
-      ret <- NULL
-    }else{
-      ret <- prod(all_df) # global df for bl is product of all df 
-      if( identical(ret, numeric(0)) ) ret <- NULL
-    } 
-    return(ret)
-  }
-
-  #### get the specified df for each base-learner
-  ## does not take into account base-learners that do not have brackets
-  if(length(tmp) == 0){
+  if(is.list(time)) {
+    warning("For timeformulas with multiple variables dfs are not checked automatically.
+            Please make sure that all base-learner df are equal to ensure a fair selection.")
     bl_df <- NULL
-  }else{
-    bl_df <- vector("list", length(tmp))
-    bl_df[equalBrackets] <- lapply(tmp[equalBrackets], function(x) try(get_df(x)))
-    bl_df <- unlist(bl_df[equalBrackets & (!sapply(bl_df, class) %in% "try-error")])
-    #print(bl_df)
-    
-    if( !is.null(bl_df) && any(abs(bl_df - bl_df[1]) > .Machine$double.eps * 10^10) ){
-      warning("The base-learners differ in the degrees of freedom.")
+  } else {
+    get_df <- function(bl){
+      split_bl <- unlist(strsplit(bl, split = "%.{1,3}%"))
+      all_df <- c()
+      for(i in 1:length(split_bl)){
+        parti <- parse(text = split_bl[i])[[1]] 
+        parti <- expand.call(definition = get(as.character(parti[[1]])), call = parti)
+        dfi <- parti$df # df of part i in bl 
+        if(is.symbol(dfi) || (!is.numeric(dfi) && is.numeric(eval(dfi)))) dfi <- eval(dfi) 
+        lambdai <- parti$lambda # if lambda is present, df is ignored 
+        if(is.symbol(lambdai)) lambdai <- eval(lambdai)
+        if(!is.null(dfi)){
+          all_df[i] <- dfi 
+        }else{ ## for df = NULL, the value of lambda is used 
+          if(lambdai == 0){
+            all_df[i] <-  NCOL(extract(with(data, eval(parti)), "design"))
+          }else{
+            all_df[i] <- "" ## dont know df 
+          }
+          if(grepl("%X.{0,3}%", bl)){ ## special behaviour of %X%
+            all_df[i] <- 1
+          } 
+        }
+      }
+      if(any(all_df == "")){
+        ret <- NULL
+      }else{
+        ret <- prod(all_df) # global df for bl is product of all df 
+        if( identical(ret, numeric(0)) ) ret <- NULL
+      } 
+      return(ret)
     }
-    
-    if(!is.null(bl_df)){
-      df_timeformula <- get_df(tfm) 
-      df_effects <- min(bl_df)
+  
+    #### get the specified df for each base-learner
+    ## does not take into account base-learners that do not have brackets
+    if(length(tmp) == 0){
+      bl_df <- NULL
+    }else{
+      bl_df <- vector("list", length(tmp))
+      bl_df[equalBrackets] <- lapply(tmp[equalBrackets], function(x) try(get_df(x)))
+      bl_df <- unlist(bl_df[equalBrackets & (!sapply(bl_df, class) %in% "try-error")])
+      #print(bl_df)
+      
+      if( !is.null(bl_df) && any(abs(bl_df - bl_df[1]) > .Machine$double.eps * 10^10) ){
+        warning("The base-learners differ in the degrees of freedom.")
+      }
+      
+      if(!is.null(bl_df)){
+        df_timeformula <- get_df(tfm) 
+        df_effects <- min(bl_df)
+      }
     }
   }
 
@@ -945,6 +967,19 @@ FDboost <- function(formula,          ### response ~ xvars
   
   ### offset == "scalar", or offset = numeric of length 1, or scalar response
   ### -> use one scalar/user-specified offset like in mboost
+  
+  ### in case of factor or multiple time variables set offset to 0 and give a warning
+  if(is.list(time) | !is.numeric(time)) {
+    .offsetwarning <- is.null(offset)
+    if(!.offsetwarning) {
+      .offsetwarning <- (offset == "scalar")
+    }
+    if(.offsetwarning) {
+      offset <- 0
+      warning("In case of factor or multiple time variables no default offset implemented, yet.
+              offset is set to 0.")
+    } 
+  }
   
   ## remember the offset-specification of FDboost
   offsetFDboost <- offset

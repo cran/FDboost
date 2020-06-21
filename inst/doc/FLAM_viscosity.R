@@ -1,7 +1,7 @@
-## ----ops, echo=FALSE-----------------------------------------------------
+## ----ops, echo=FALSE----------------------------------------------------------
 knitr::opts_chunk$set(comment=NA, warning=FALSE, message=FALSE)
 
-## ----pkg-attach, echo = FALSE--------------------------------------------
+## ----pkg-attach, echo = FALSE-------------------------------------------------
 library(FDboost)
 
 ## function based on funplot() to plot values on logscale with nice labels
@@ -52,7 +52,7 @@ getCol2 <- function(x, cols = rainbow(18)[1:length(table(x))]){
   return(ret)
 }
 
-## ----load-data, echo = TRUE----------------------------------------------
+## ----load-data, echo = TRUE---------------------------------------------------
 # load("viscosity.RData")
 data(viscosity)
 str(viscosity)
@@ -86,7 +86,7 @@ legend("bottomright", fill=mycol,
        legend=c("T_C low, T_A low", "T_C low, T_A high", 
                 "T_C high, T_A low", "T_C high, T_A high"), cex = 0.8)
 
-## ----complete-model, echo = TRUE, eval=FALSE-----------------------------
+## ----complete-model, echo = TRUE, eval=FALSE----------------------------------
 #  set.seed(1911)
 #  modAll <- FDboost(vis ~ 1
 #                    + bols(T_C) # main effects
@@ -110,7 +110,7 @@ legend("bottomright", fill=mycol,
 #                    data=viscosity, check0=FALSE,
 #                    control=boost_control(mstop = 100, nu = 0.2))
 
-## ----cv-complete, echo = TRUE, eval=FALSE--------------------------------
+## ----cv-complete, echo = TRUE, eval=FALSE-------------------------------------
 #  set.seed(1911)
 #  folds <- cv(weights=rep(1, modAll$ydim[1]), type="bootstrap", B=10)
 #  cvmAll <- suppressWarnings(validateFDboost(modAll, folds = folds,
@@ -121,7 +121,7 @@ legend("bottomright", fill=mycol,
 #  # summary(modAll)
 #  # cvmAll
 
-## ----stabsel1, echo = TRUE, eval=FALSE-----------------------------------
+## ----stabsel1, echo = TRUE, eval=FALSE----------------------------------------
 #  set.seed(1911)
 #  folds <- cvMa(ydim=modAll$ydim, weights=model.weights(modAll),
 #                type = "subsampling", B = 50)
@@ -132,7 +132,7 @@ legend("bottomright", fill=mycol,
 #  sel1
 #  # selects effects T_C, T_A, T_C_T_A
 
-## ----selected-model, echo = TRUE-----------------------------------------
+## ----selected-model, echo = TRUE----------------------------------------------
 set.seed(1911)
 mod1 <- FDboost(vis ~ 1 + bols(T_C) + bols(T_A) + bols(T_C_T_A),
                 timeformula = ~bbs(time, lambda = 100),  
@@ -140,10 +140,10 @@ mod1 <- FDboost(vis ~ 1 + bols(T_C) + bols(T_A) + bols(T_C_T_A),
                 offset = NULL, offset_control = o_control(k_min = 10),
                 data = viscosity, control = boost_control(mstop = 200, nu = 0.2))
 
-## ----cv-selected-model0, echo = TRUE-------------------------------------
+## ----cv-selected-model0, echo = TRUE------------------------------------------
 mod1 <- mod1[430]
 
-## ----cv-selected-model, echo = TRUE, eval=FALSE--------------------------
+## ----cv-selected-model, echo = TRUE, eval=FALSE-------------------------------
 #  set.seed(1911)
 #  folds <- cv(weights = rep(1, mod1$ydim[1]), type = "bootstrap", B = 10)
 #  cvm1 <- validateFDboost(mod1, folds = folds, getCoefCV = FALSE,
@@ -152,7 +152,7 @@ mod1 <- mod1[430]
 #  mod1 <- mod1[mstop(cvm1)]
 #  # summary(mod1)
 
-## ----coefs-selected-model, echo = TRUE-----------------------------------
+## ----coefs-selected-model, echo = TRUE----------------------------------------
 # set up dataframe containing systematically all variable combinations
 newdata <- list(T_C=factor(c(1,1,2,2), levels=1:2, labels=c("low","high")) ,  
              T_A=factor(c(1, 2, 1, 2), levels=1:2, labels=c("low","high")), 

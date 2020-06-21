@@ -78,7 +78,7 @@ print.FDboost <- function(x, ...) {
 #'  Takes a fitted \code{FDboost}-object produced by \code{\link{FDboost}()} and produces 
 #'  predictions given a new set of values for the model covariates or the original 
 #'  values used for the model fit. This is a wrapper
-#'  function for \code{\link[mboost]{predict.mboost}()}
+#'  function for \code{\link[mboost:methods]{predict.mboost}()}
 #' 
 #' @param object a fitted \code{FDboost}-object
 #' @param newdata a named list or a data frame containing the values of the model 
@@ -94,7 +94,7 @@ print.FDboost <- function(x, ...) {
 #' @param toFDboost logical, defaults to \code{TRUE}. In case of regular response in wide format 
 #' (i.e. response is supplied as matrix): should the predictions be returned as matrix, or list 
 #' of matrices instead of vectors
-#' @param ...  additional arguments passed on to \code{\link[mboost]{predict.mboost}()}.
+#' @param ...  additional arguments passed on to \code{\link[mboost:methods]{predict.mboost}()}.
 #' 
 #' @seealso \code{\link{FDboost}} for the model fit 
 #' and \code{\link{plotPredicted}} for a plot of the observed values and their predictions.
@@ -111,7 +111,7 @@ predict.FDboost <- function(object, newdata = NULL, which = NULL, toFDboost = TR
   # toFDboost is only meaningful for array-data
   if(any(class(object) == "FDboostScalar") |  any(class(object) == "FDboostLong")) toFDboost <- FALSE
 
-  if(!is.null(dots$aggregate) && dots$aggregate != "sum"){
+  if(!is.null(dots$aggregate) && dots$aggregate[1] != "sum"){
     if(length(which) > 1 ) stop("For aggregate != 'sum', only one effect, or which=NULL are possible.")
     if(toFDboost & class(object)[1] == "FDboost"){ 
       toFDboost <- FALSE
@@ -231,17 +231,20 @@ predict.FDboost <- function(object, newdata = NULL, which = NULL, toFDboost = TR
         xname <- object$baselearner[[i]]$get_names()[1] 
         indname <- attr(object$baselearner[[i]]$get_data()[[xname]], "indname")  # does not work for %X% 
         ## if two ore more base-learners are connected by %X%, find the functional variable 
+        ## the loop is necessary if more than one functioal covaraites are used in the same bl
         if(grepl("%X", names(object$baselearner)[i])){
           form <- strsplit(object$baselearner[[i]]$get_call(), "%X")[[1]]
           findFun <- grepl("bhist", form) | grepl("bconcurrent", form) | grepl("bsignal", form) | grepl("bfpc", form)
-          form <- form[findFun]
-          if(sum(findFun)!=1){stop("Can only predict effect of one functional effect in %X% or %Xc%.")}
-          xname <- object$baselearner[[i]]$get_names()[findFun][1]
-          fun_call <- strsplit(names(object$baselearner)[[i]], "%.{1,3}%")[[1]][findFun]
-          if(substr(fun_call,1,1) == "\"") fun_call <- substr(fun_call, 2, nchar(fun_call)-1)
-          fun_call <- gsub(pattern = "\\\"", replacement = "", x = fun_call, fixed=TRUE)
-          fun_call <- gsub(pattern = "\\", replacement = "", x = fun_call, fixed=TRUE)
-          indname <- all.vars(formula(paste("Y~", fun_call)))[3] # variabes are Y, x, s, (time)
+          xname <- c()
+          indname <- c()
+          for(j in which(findFun)){
+            xname[j] <- object$baselearner[[i]]$get_names()[j][1]
+            fun_call <- strsplit(names(object$baselearner)[[i]], "%.{1,3}%")[[1]][j]
+            fun_call <- gsub(pattern = "\\\"", replacement = "", x = fun_call, fixed=TRUE)
+            fun_call <- gsub(pattern = "\\", replacement = "", x = fun_call, fixed=TRUE)
+            fun_call <- gsub(pattern = "\"", replacement = "", x = fun_call, fixed=TRUE)
+            indname[j] <- all.vars(formula(paste("Y~", fun_call)))[3] # variabes are Y, x, s, (time)
+          }
         }
 
         if(i %in% c(posBhist, posBconc)){
@@ -250,14 +253,18 @@ predict.FDboost <- function(object, newdata = NULL, which = NULL, toFDboost = TR
           indnameY <- NULL
         }
 
-        attr(newdata[[xname]], "indname") <- indname
-        attr(newdata[[xname]], "xname") <- xname
-        attr(newdata[[xname]], "signalIndex") <-  if(indname!="xindDefault") newdata[[indname]] else seq(0,1,l=ncol(newdata[[xname]]))
-        ## convert matrix to model matrix, so that as.data.frame(newdata[[xname]]) 
-        ## retains matrix-structure if newdata is a list
-        if( class(newdata[[xname]])[1] == "matrix" ) class(newdata[[xname]])[1] <- "model.matrix"
+        for(j in 1:length(xname)){
+          attr(newdata[[xname[j]]], "indname") <- indname[j]
+          attr(newdata[[xname[j]]], "xname") <- xname[j]
+          attr(newdata[[xname[j]]], "signalIndex") <-  if(indname[j]!="xindDefault") newdata[[indname[j]]] else seq(0,1,l=ncol(newdata[[xname[j]]]))
+          ## convert matrix to model matrix, so that as.data.frame(newdata[[xname]]) 
+          ## retains matrix-structure if newdata is a list
+          if( class(newdata[[xname[j]]])[1] == "matrix" ) class(newdata[[xname[j]]])[1] <- "model.matrix"
+        }
+
         
         if(i %in% c(posBhist, posBconc)){
+          if(length(xname) > 1) stop("Cannot deal with interactions of funtional covariates in historical or concurrent effects.")
           attr(newdata[[indnameY]], "indnameY") <-  indnameY
           attr(newdata[[xname]], "indexY") <-  if(indnameY!="xindDefault") newdata[[indnameY]] else seq(0,1,l=ncol(newdata[[xname]]))
           if(any(classObject=="FDboostLong")){
@@ -1911,8 +1918,10 @@ update.FDboost <- function(object, weights = NULL, oobweights = NULL, risk = NUL
 #' observations. \code{expand = TRUE} is equivalent to \code{extract(B)[extract(B, what = "index"),]} 
 #' for a base-learner \code{B}.
 #' @param ... currently not used
+#' 
 #' @method extract blg
-#' @seealso \code{\link[mboost]{extract}} for the \code{extract} function of the package mboost
+#' @seealso \code{\link[mboost:methods]{extract}} for the \code{extract} function 
+#' of the package \code{mboost}.
 extract.blg <- function(object, what = c("design", "penalty", "index"),
                         asmatrix = FALSE, expand = FALSE, ...){
   what <- match.arg(what)

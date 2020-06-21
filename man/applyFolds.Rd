@@ -5,27 +5,50 @@
 \alias{cvMa}
 \alias{cvLong}
 \alias{cvrisk.FDboost}
-\alias{cvrisk.FDboost}
-\alias{cvLong}
-\alias{cvMa}
 \title{Cross-Validation and Bootstrapping over Curves}
 \usage{
-applyFolds(object, folds = cv(rep(1, length(unique(object$id))), type =
-  "bootstrap"), grid = 1:mstop(object), fun = NULL, riskFun = NULL,
-  numInt = object$numInt, papply = mclapply, mc.preschedule = FALSE,
-  showProgress = TRUE, compress = FALSE, ...)
+applyFolds(
+  object,
+  folds = cv(rep(1, length(unique(object$id))), type = "bootstrap"),
+  grid = 1:mstop(object),
+  fun = NULL,
+  riskFun = NULL,
+  numInt = object$numInt,
+  papply = mclapply,
+  mc.preschedule = FALSE,
+  showProgress = TRUE,
+  compress = FALSE,
+  ...
+)
 
-\method{cvrisk}{FDboost}(object, folds = cvLong(id = object$id, weights =
-  model.weights(object)), grid = 1:mstop(object), papply = mclapply,
-  fun = NULL, mc.preschedule = FALSE, ...)
+\method{cvrisk}{FDboost}(
+  object,
+  folds = cvLong(id = object$id, weights = model.weights(object)),
+  grid = 1:mstop(object),
+  papply = mclapply,
+  fun = NULL,
+  mc.preschedule = FALSE,
+  ...
+)
 
-cvLong(id, weights = rep(1, l = length(id)), type = c("bootstrap", "kfold",
-  "subsampling", "curves"), B = ifelse(type == "kfold", 10, 25), prob = 0.5,
-  strata = NULL)
+cvLong(
+  id,
+  weights = rep(1, l = length(id)),
+  type = c("bootstrap", "kfold", "subsampling", "curves"),
+  B = ifelse(type == "kfold", 10, 25),
+  prob = 0.5,
+  strata = NULL
+)
 
-cvMa(ydim, weights = rep(1, l = ydim[1] * ydim[2]), type = c("bootstrap",
-  "kfold", "subsampling", "curves"), B = ifelse(type == "kfold", 10, 25),
-  prob = 0.5, strata = NULL, ...)
+cvMa(
+  ydim,
+  weights = rep(1, l = ydim[1] * ydim[2]),
+  type = c("bootstrap", "kfold", "subsampling", "curves"),
+  B = ifelse(type == "kfold", 10, 25),
+  prob = 0.5,
+  strata = NULL,
+  ...
+)
 }
 \arguments{
 \item{object}{fitted FDboost-object}
@@ -41,24 +64,24 @@ may extract any other characteristic of the cross-validated models. These are re
 \item{riskFun}{only exists in \code{applyFolds}; allows to compute other risk functions than the risk 
 of the family that was specified in object. 
 Must be specified as function of arguments \code{(y, f, w = 1)}, where \code{y} is the 
-observed response, \code{f} is the prediciton from the model and \code{w} is the weight. 
-The risk function must return a scalar numeric value for vector valued imput.}
+observed response, \code{f} is the prediction from the model and \code{w} is the weight. 
+The risk function must return a scalar numeric value for vector valued input.}
 
 \item{numInt}{only exists in \code{applyFolds}; the scheme for numerical integration, 
 see \code{numInt} in \code{\link{FDboost}}.}
 
-\item{papply}{(parallel) apply function, defaults to \code{\link[parallel]{mclapply}}, 
-see \code{\link[mboost]{cvrisk}} for details.}
+\item{papply}{(parallel) apply function, defaults to \code{\link{mclapply}} from 
+R package \code{parallel}, see \code{\link[mboost]{cvrisk}} for details.}
 
-\item{mc.preschedule}{Defaults to \code{FALSE}. Preschedule tasks if are parallelized using \code{mclapply}?
-For details see \code{\link[parallel]{mclapply}}.}
+\item{mc.preschedule}{Defaults to \code{FALSE}. Preschedule tasks if they are parallelized using \code{mclapply}.
+For details see \code{\link{mclapply}}.}
 
 \item{showProgress}{logical, defaults to \code{TRUE}.}
 
 \item{compress}{logical, defaults to \code{FALSE}. Only used to force a meaningful
 behaviour of \code{applyFolds} with hmatrix objects when using nested resampling.}
 
-\item{...}{further arguments passed to \code{\link[parallel]{mclapply}}}
+\item{...}{further arguments passed to the (parallel) apply function.}
 
 \item{id}{the id-vector as integers 1, 2, ... specifying which observations belong to the same curve, 
 deprecated in \code{cvMa()}.}
@@ -97,7 +120,7 @@ hyper-parameter selection.
 \details{
 The number of boosting iterations is an important hyper-parameter of boosting.   
 It be chosen using the functions \code{applyFolds} or \code{cvrisk.FDboost}. Those functions 
-they compute honest, i.e., out-of-bag, estimates of the empirical risk for different 
+compute honest, i.e., out-of-bag, estimates of the empirical risk for different 
 numbers of boosting iterations. 
 The weights (zero weights correspond to test cases) are defined via the folds matrix, 
 see \code{\link[mboost]{cvrisk}} in package mboost. 

@@ -1,8 +1,8 @@
-## ----pkg-attach, echo = FALSE, warning=FALSE, message=FALSE--------------
+## ----pkg-attach, echo = FALSE, warning=FALSE, message=FALSE-------------------
 # Load FDboost package
 library(FDboost)
 
-## ----load-data, echo = TRUE, warning=FALSE, message=FALSE----------------
+## ----load-data, echo = TRUE, warning=FALSE, message=FALSE---------------------
 library(fda)
 data("CanadianWeather", package = "fda")
 
@@ -53,7 +53,7 @@ with(dataM, {
 mtext("time [month]", 1, line = 2)#, cex = 1.5)
 mtext("temperature [C]", 2, line = 2)#, cex = 1.5)
 
-## ----setup-model, echo = TRUE, message=FALSE, warning=FALSE--------------
+## ----setup-model, echo = TRUE, message=FALSE, warning=FALSE-------------------
 locations <- cbind(dataM$lon, dataM$lat)
 ### fix location names s.t. they correspond to levels in places
 rownames(locations) <- as.character(dataM$place)
@@ -90,12 +90,12 @@ if(FALSE){
 }
 
 
-## for uncorrelated resiaudls
+## for uncorrelated residuals
 #   P_nu.5 <- diag(35)
 #   print("Residuals are uncorrelated!")
 
 
-## ----fit-model, echo = TRUE, message=FALSE-------------------------------
+## ----fit-model, echo = TRUE, message=FALSE------------------------------------
 # use bolsc() base-learner with precision matrix as penalty matrix
 set.seed(210114)
 mod3 <- FDboost(l10precip ~ bols(region, df = 2.5, contrasts.arg = "contr.dummy") 
@@ -107,10 +107,10 @@ mod3 <- FDboost(l10precip ~ bols(region, df = 2.5, contrasts.arg = "contr.dummy"
                 offset="scalar", offset_control = o_control(k_min = 5), 
                 data=dataM)
 
-## ----cv-bootstrap0, eval = TRUE------------------------------------------
+## ----cv-bootstrap0, eval = TRUE-----------------------------------------------
 mod3 <- mod3[47]
 
-## ----cv-bootstrap, eval = FALSE------------------------------------------
+## ----cv-bootstrap, eval = FALSE-----------------------------------------------
 #  set.seed(2303)
 #  folds <- cvMa(ydim = mod3$ydim, type = "bootstrap", B = 25)
 #  cvMod3 <- cvrisk(mod3, grid = seq(1, 1000, by=1), folds = folds, mc.cores = 10)
@@ -136,10 +136,10 @@ legend("bottom", lty = 1:4, legend = levels(dataM$region), col = 1:4, bty = "n",
 plot(mod3, which = 2, pers = TRUE, main = "temperature", zlab = "",
      xlab = "s, time [month]", ylab = "t, time [month]")
 
-## ----cv-curves0, echo = TRUE---------------------------------------------
+## ----cv-curves0, echo = TRUE--------------------------------------------------
 mod3 <- mod3[750]
 
-## ----cv-curves, eval = FALSE---------------------------------------------
+## ----cv-curves, eval = FALSE--------------------------------------------------
 #  set.seed(143)
 #  folds <- cvMa(ydim = mod3$ydim, type = "curves")
 #  cvMod3curves <- cvrisk(mod3, grid = seq(1, 1000, by = 1), folds = folds, mc.cores = 12)
@@ -167,7 +167,7 @@ legend("bottom", lty = 1:4, legend = levels(dataM$region), col = 1:4, bty = "n",
 plot(mod3, which = 2, pers = TRUE, main = "temperature", zlab = "",
      xlab = "s, time [month]", ylab = "t, time [month]")
 
-## ----plot-bootstrap-model2_prep, echo = TRUE-----------------------------
+## ----plot-bootstrap-model2_prep, echo = TRUE----------------------------------
 ord <- c("Dawson", "Whitehorse", "Yellowknife", "Uranium City", "Churchill",
          "Edmonton",  "Pr. Albert", "The Pas", "Calgary", "Regina", "Winnipeg",
          "Thunder Bay",

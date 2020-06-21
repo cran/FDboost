@@ -75,12 +75,24 @@ integrationWeights <- function(X1, xind, id = NULL){
   
   # compute integraion weights for irregular data in long format
   if(!is.null(id)){
-    Lneu <- tapply(xind, id, FUN = function(x) colMeans(rbind(c(0, diff(x)), c(diff(x), 0))) )
+    Lneu <- tapply(xind, id, FUN = function(x) {
+      unsorted <- is.unsorted(x, strictly = FALSE)
+      if(unsorted) {xorder <- order(x)
+      x <- sort(x)}
+      w <- colMeans(rbind(c(0, diff(x)), c(diff(x), 0)))
+      if(unsorted) w[order(xorder)] else w} ) # re-order if necessary
     Lneu <- unlist(Lneu)
     names(Lneu) <- NULL    
     return(Lneu) 
   }  
   
+  # sort xind values while calculating the weights 
+  unsorted <- is.unsorted(xind, strictly = FALSE)
+  if(unsorted) {
+    xorder <- order(xind)
+    X1 <- X1[, xorder]
+    xind <- sort(xind)
+  }
   ## special case that grid has equal distances = regular grid
   if(all( abs(diff(xind) - mean(diff(xind))) < .Machine$double.eps *10^10 )){
     ## use the first difference 
@@ -138,10 +150,10 @@ integrationWeights <- function(X1, xind, id = NULL){
     }
     )
     
-    return(t(Lneu))  
+    if(unsorted) return(t(Lneu)[,order(xorder)]) else return(t(Lneu))
     
   }else{ 
-    return(L)
+    if(unsorted) return(L[,order(xorder)]) else return(L)
   }
 }
 
@@ -155,7 +167,12 @@ integrationWeights <- function(X1, xind, id = NULL){
 integrationWeightsLeft <- function(X1, xind, leftWeight = c("first", "mean", "zero")){
   
   if(ncol(X1) != length(xind)) stop("Dimension of xind and X1 do not match")
-  # !is.unsorted(xind, strictly = FALSE) # is xind sorted?
+  unsorted <- is.unsorted(xind, strictly = FALSE) # is xind sorted?
+  if(unsorted) {
+    xorder <- order(xind)
+    X1 <- X1[, xorder]
+    xind <- sort(xind)
+  }
   
   leftWeight <- match.arg(leftWeight)
   
@@ -170,7 +187,7 @@ integrationWeightsLeft <- function(X1, xind, leftWeight = c("first", "mean", "ze
 
   L <- matrix(Li, nrow=nrow(X1), ncol=ncol(X1), byrow=TRUE)
   
-  return(L)
+  if(unsorted) return(L[,order(xorder)]) else return(L) # re-order if necessary
 }
 
 
@@ -400,7 +417,7 @@ X_bsignal <- function(mf, vary, args) {
 #' For example, \code{bsignal(X, s, index = index)} is equal to \code{bsignal(X[index,], s)}, 
 #' where index is an integer of length greater or equal to \code{NROW(x)}.
 #' @param knots either the number of knots or a vector of the positions 
-#' of the interior knots (for more details see \code{\link[mboost]{bbs}}).
+#' of the interior knots (for more details see \code{\link[mboost:baselearners]{bbs}}).
 #' @param boundary.knots boundary points at which to anchor the B-spline basis 
 #' (default the range of the data). A vector (of length 2) 
 #' for the lower and the upper boundary knot can be specified.
@@ -412,13 +429,13 @@ X_bsignal <- function(mf, vary, args) {
 #' base-learner complexity. Low values of \code{df} correspond to a 
 #' large amount of smoothing and thus to "weaker" base-learners.
 #' @param lambda smoothing parameter of the penalty, computed from \code{df} when \code{df} is specified. 
-#' @param center See \code{\link[mboost]{bbs}}. 
+#' @param center See \code{\link[mboost:baselearners]{bbs}}. 
 #' The effect is re-parameterized such that the unpenalized part of the fit is subtracted and only 
 #' the penalized effect is fitted, using a spectral decomposition of the penalty matrix.  
 #' The unpenalized, parametric part has then to be included in separate 
 #' base-learners using \code{bsignal(..., inS = 'constant')} or \code{bsignal(..., inS = 'linear')} 
 #' for first (\code{difference = 1}) and second (\code{difference = 2}) order difference penalty respectively. 
-#' See the help on the argument \code{center} of \code{\link[mboost]{bbs}}.   
+#' See the help on the argument \code{center} of \code{\link[mboost:baselearners]{bbs}}.   
 #' @param cyclic if \code{cyclic = TRUE} the fitted coefficient function coincides at the boundaries 
 #' (useful for cyclic covariates such as day time etc.).
 #' @param Z a transformation matrix for the design-matrix over the index of the covariate.
@@ -2062,7 +2079,7 @@ hyper_bbsc <- function(Z, ...){
 #' either a factor or numeric variable.
 #' @param index a vector of integers for expanding the variables in \code{...}.
 #' @param knots either the number of knots or a vector of the positions 
-#' of the interior knots (for more details see \code{\link[mboost]{bbs}}).
+#' of the interior knots (for more details see \code{\link[mboost:baselearners]{bbs}}).
 #' @param boundary.knots boundary points at which to anchor the B-spline basis 
 #' (default the range of the data). A vector (of length 2) 
 #' for the lower and the upper boundary knot can be specified.
@@ -2077,7 +2094,7 @@ hyper_bbsc <- function(Z, ...){
 #' \code{df} is specified. 
 #' @param K in \code{bolsc} it is possible to specify the penalty matrix K
 #' @param weights experiemtnal! weights that are used for the computation of the transformation matrix Z.
-#' @param center See \code{\link[mboost]{bbs}}. 
+#' @param center See \code{\link[mboost:baselearners]{bbs}}. 
 #' @param cyclic  if \code{cyclic = TRUE} the fitted values coincide at 
 #' the boundaries (useful for cyclic covariates such as day time etc.).
 #' @param contrasts.arg Note that a special \code{contrasts.arg} exists in 
@@ -2085,13 +2102,13 @@ hyper_bbsc <- function(Z, ...){
 #' in \code{brandomc}. It leads to a 
 #' dummy coding as returned by \code{model.matrix(~ x - 1)} were the 
 #' intercept is implicitly included but each factor level gets a 
-#' separate effect estimate (for more details see \code{\link[mboost]{brandom}}).
+#' separate effect estimate (for more details see \code{\link[mboost:baselearners]{brandom}}).
 #' @param intercept if \code{intercept = TRUE} an intercept is added to the design matrix 
 #' of a linear base-learner. 
 #' 
 #' @details The base-learners \code{bbsc}, \code{bolsc} and \code{brandomc} are 
-#' the base-learners \code{\link[mboost]{bbs}}, \code{\link[mboost]{bols}} and 
-#' \code{\link[mboost]{brandom}} with additional identifiability constraints. 
+#' the base-learners \code{\link[mboost:baselearners]{bbs}}, \code{\link[mboost:baselearners]{bols}} and 
+#' \code{\link[mboost:baselearners]{brandom}} with additional identifiability constraints. 
 #' The constraints enforce that 
 #' \eqn{\sum_{i} \hat h(x_i, t) = 0} for all \eqn{t}, so that 
 #' effects varying over \eqn{t} can be interpreted as deviations 
@@ -2114,7 +2131,8 @@ hyper_bbsc <- function(Z, ...){
 #' \code{fit} finally returns an object of class \code{bm} (base-model).
 #' 
 #' @seealso \code{\link{FDboost}} for the model fit. 
-#' \code{\link[mboost]{bbs}}, \code{\link[mboost]{bols}} and \code{\link[mboost]{brandom}} for the 
+#' \code{\link[mboost:baselearners]{bbs}}, \code{\link[mboost:baselearners]{bols}} 
+#' and \code{\link[mboost:baselearners]{brandom}} for the 
 #' corresponding base-learners in \code{mboost}. 
 #' 
 #' @references 

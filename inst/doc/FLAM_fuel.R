@@ -1,10 +1,10 @@
-## ----ops, echo=FALSE-----------------------------------------------------
+## ----ops, echo=FALSE----------------------------------------------------------
 knitr::opts_chunk$set(comment=NA, warning=FALSE, message=FALSE)
 
-## ----pkg-attach, echo = FALSE, warning=FALSE, message=FALSE--------------
+## ----pkg-attach, echo = FALSE, warning=FALSE, message=FALSE-------------------
 library(FDboost)
 
-## ----load-data, echo = TRUE----------------------------------------------
+## ----load-data, echo = TRUE---------------------------------------------------
 data(fuelSubset)
 fuel <- fuelSubset
 str(fuel)
@@ -25,7 +25,7 @@ fuel$dnir.lambda <- fuel$nir.lambda[-1]
 # fuel$duvvis.lambda0 <- fuel$uvvis.lambda0[-1]
 # fuel$dnir.lambda0 <- fuel$nir.lambda0[-1]
 
-## ----humidity-model, echo = TRUE, eval=FALSE-----------------------------
+## ----humidity-model, echo = TRUE, eval=FALSE----------------------------------
 #  modH2O <- FDboost(h2o ~ bsignal(UVVIS, uvvis.lambda, knots=40, df=4)
 #                      + bsignal(NIR, nir.lambda, knots=40, df=4)
 #                      + bsignal(dUVVIS, duvvis.lambda, knots=40, df=4)
@@ -49,7 +49,7 @@ fuel$dnir.lambda <- fuel$nir.lambda[-1]
 #  plot(fuel$h2o, h2o.fit)
 #  abline(0,1)
 
-## ----model-spec, echo=TRUE-----------------------------------------------
+## ----model-spec, echo=TRUE----------------------------------------------------
 formula <- formula(heatan ~ bsignal(UVVIS, uvvis.lambda, knots=40, df=4.41) 
                    + bsignal(NIR, nir.lambda, knots=40, df=4.41))
 
@@ -57,7 +57,7 @@ formula <- formula(heatan ~ bsignal(UVVIS, uvvis.lambda, knots=40, df=4.41)
 mod <- FDboost(formula, timeformula=~bols(1), data=fuel)
 mod <- mod[198]
 
-## ----cv-model-spec, echo=TRUE, eval=FALSE--------------------------------
+## ----cv-model-spec, echo=TRUE, eval=FALSE-------------------------------------
 #  ## get optimal mstop and do bootstrapping for coefficient estimates
 #  set.seed(2703)
 #  val <- validateFDboost(mod,
