@@ -137,7 +137,7 @@ mod <- FDboost(Y ~ 1 + bhistx(x = X1h, df = 5, knots = 5) +
 mod <- FDboost(Y ~ 1 + bhistx(x = X1h, df = 5, knots = 5) \%X\% bols(zlong), 
               timeformula = ~ bbs(tvals, knots = 10), data = dataList)
 
-\dontrun{
+\donttest{
   # find the optimal mstop over 5-fold bootstrap (small example to reduce run time)
   cv <- cvrisk(mod, folds = cv(model.weights(mod), B = 5))
   mstop(cv)
@@ -164,7 +164,7 @@ Journal of the Royal Statistical Society: Series C (Applied Statistics), 67, 621
 
 Scheipl, F., Staicu, A.-M. and Greven, S. (2015): 
 Functional Additive Mixed Models, Journal of Computational and Graphical Statistics, 24(2), 477-501.
-\url{http://arxiv.org/abs/1207.5947} 
+\url{https://arxiv.org/abs/1207.5947} 
 
 Scheipl, F. and Greven, S. (2016): Identifiability in penalized function-on-function regression models. 
 Electronic Journal of Statistics, 10(1), 495-526.

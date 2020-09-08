@@ -113,7 +113,7 @@ mod3 <- mod3[47]
 ## ----cv-bootstrap, eval = FALSE-----------------------------------------------
 #  set.seed(2303)
 #  folds <- cvMa(ydim = mod3$ydim, type = "bootstrap", B = 25)
-#  cvMod3 <- cvrisk(mod3, grid = seq(1, 1000, by=1), folds = folds, mc.cores = 10)
+#  cvMod3 <- cvrisk(mod3, grid = seq(1, 1000, by=1), folds = folds, mc.cores = 1)
 #  mod3 <- mod3[mstop(cvMod3)] # 47
 #  # summary(mod3)
 
@@ -142,7 +142,7 @@ mod3 <- mod3[750]
 ## ----cv-curves, eval = FALSE--------------------------------------------------
 #  set.seed(143)
 #  folds <- cvMa(ydim = mod3$ydim, type = "curves")
-#  cvMod3curves <- cvrisk(mod3, grid = seq(1, 1000, by = 1), folds = folds, mc.cores = 12)
+#  cvMod3curves <- cvrisk(mod3, grid = seq(1, 1000, by = 1), folds = folds, mc.cores = 1)
 #  
 #  ## optimal stopping iteration in terms of mean
 #  mstop(cvMod3curves)

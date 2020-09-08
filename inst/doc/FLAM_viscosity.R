@@ -115,7 +115,7 @@ legend("bottomright", fill=mycol,
 #  folds <- cv(weights=rep(1, modAll$ydim[1]), type="bootstrap", B=10)
 #  cvmAll <- suppressWarnings(validateFDboost(modAll, folds = folds,
 #                                    getCoefCV=FALSE,
-#                                    grid=seq(10, 500, by=10), mc.cores=10))
+#                                    grid=seq(10, 500, by=10), mc.cores = 1))
 #  mstop(cvmAll) # 180
 #  # modAll <- modAll[mstop(cvmAll)]
 #  # summary(modAll)
@@ -128,7 +128,7 @@ legend("bottomright", fill=mycol,
 #  
 #  stabsel_parameters(q=5, PFER=2, p=16, sampling.type = "SS")
 #  sel1 <- stabsel(modAll, q=5, PFER=2, folds=folds, grid=1:100,
-#                  sampling.type="SS", mc.cores=10)
+#                  sampling.type="SS", mc.cores = 1)
 #  sel1
 #  # selects effects T_C, T_A, T_C_T_A
 
@@ -147,7 +147,7 @@ mod1 <- mod1[430]
 #  set.seed(1911)
 #  folds <- cv(weights = rep(1, mod1$ydim[1]), type = "bootstrap", B = 10)
 #  cvm1 <- validateFDboost(mod1, folds = folds, getCoefCV = FALSE,
-#                          grid = seq(10, 500, by = 10), mc.cores = 10)
+#                          grid = seq(10, 500, by = 10), mc.cores = 1)
 #  mstop(cvm1) # 430
 #  mod1 <- mod1[mstop(cvm1)]
 #  # summary(mod1)

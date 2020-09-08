@@ -35,7 +35,7 @@ fuel$dnir.lambda <- fuel$nir.lambda[-1]
 #  set.seed(212)
 #  cvmH2O <- suppressWarnings(cvrisk(modH2O, grid=seq(100, 5000, by=100),
 #                                folds=cv( model.weights(modH2O),
-#                                type = "bootstrap", B = 10), mc.cores=10))
+#                                type = "bootstrap", B = 10), mc.cores = 1))
 #  
 #  par(mfrow=c(1,2))
 #  plot(cvmH2O)
@@ -62,7 +62,7 @@ mod <- mod[198]
 #  set.seed(2703)
 #  val <- validateFDboost(mod,
 #                         folds=cv(model.weights(mod), type = "bootstrap", B = 50),
-#                         grid = 10:500, mc.cores=10)
+#                         grid = 10:500, mc.cores = 1)
 #  
 #  mopt <- val$grid[which.min(colMeans(val$oobrisk))]
 #  print(mopt)

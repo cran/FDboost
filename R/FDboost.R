@@ -17,7 +17,7 @@
 #' a linear functional effect \eqn{\int x_i(s)\beta(s,t)ds}, 
 #' potentially with integration limits depending on \eqn{t}, 
 #' smooth and linear effects of scalar covariates \eqn{f(z_i,t)} or \eqn{z_i \beta(t)}. 
-#' A hands-on tutorial for the package can be found at \url{https://arxiv.org/abs/1705.10662}.
+#' A hands-on tutorial for the package can be found at <doi:10.18637/jss.v094.i10>.
 #' 
 #' @param formula a symbolic description of the model to be fit. 
 #' Per default no intercept is added, only a smooth offset, see argument \code{offset}. 
@@ -207,7 +207,7 @@
 #' @references 
 #' Brockhaus, S., Ruegamer, D. and Greven, S. (2017):
 #' Boosting Functional Regression Models with FDboost.
-#' \url{https://arxiv.org/abs/1705.10662}
+#' <doi:10.18637/jss.v094.i10>
 #' 
 #' Brockhaus, S., Scheipl, F., Hothorn, T. and Greven, S. (2015): 
 #' The functional linear array model. Statistical Modelling, 15(3), 279-300. 
@@ -245,7 +245,7 @@
 #'                offset = NULL, offset_control = o_control(k_min = 9),
 #'                data = viscosity, control=boost_control(mstop = 100, nu = 0.4))
 #' 
-#' \dontrun{
+#' \donttest{
 #'   #### find optimal mstop over 5-fold bootstrap, small number of folds for example
 #'   #### do the resampling on the level of curves
 #'   
@@ -313,7 +313,7 @@
 #'                + bsignal(NIR, nir.lambda, knots = 40, df = 4, check.ident = FALSE), 
 #'                timeformula = ~ bols(1), data = fuelSubset, control = boost_control(mstop = 200))
 #'                
-#' \dontrun{   
+#' \donttest{   
 #'   ## bootstrap to find optimal mstop takes some time
 #'   set.seed(123)      
 #'   folds2 <- cv(weights = model.weights(mod2), B = 10)     
@@ -346,7 +346,7 @@
 #'                   control = boost_control(mstop = 60), 
 #'                   data = CanadianWeather) 
 #'  
-#'  \dontrun{                  
+#'  \donttest{                  
 #'    #### find the optimal mstop over 5-fold bootstrap 
 #'    ## using the function applyFolds 
 #'    set.seed(123)
@@ -398,7 +398,7 @@
 #' ## plot(mod4)
 #' ## plotPredicted(mod4, lwdPred = 2)
 #' 
-#' \dontrun{
+#' \donttest{
 #'   ## Find optimal mstop, small grid/low B for a fast example
 #'   set.seed(123)
 #'   folds4 <- cv(rep(1, length(unique(mod4$id))), B = 3)
@@ -943,7 +943,11 @@ FDboost <- function(formula,          ### response ~ xvars
   
   ### multiply integration weights numInt to weights and w
   if(is.numeric(numInt)){
-    if(length(numInt) != length(time)) stop("Length of integration weights and time vector are not equal.")
+    .numInt_len_check <- if(is.list(time))
+      all(length(numInt) == sapply(time, length))  else 
+        length(numInt) == length(time)
+    if(!.numInt_len_check) 
+      stop("Length of integration weights and time vector are not equal.")
     weights <- weights * numInt
     data_weights <- numInt
     if(!is.null(ydim)){ ## only blow up for array model
@@ -952,7 +956,9 @@ FDboost <- function(formula,          ### response ~ xvars
     }
   }else{
     if(!numInt %in% c("equal", "Riemann")) warning("argument numInt is ignored as it is neither numeric nor one of (\"equal\", \"Riemann\")")
-    if(numInt == "Riemann"){ 
+    if(numInt == "Riemann"){
+      if(!is.numeric(time)) 
+        stop("Riemann integration weights only implemented for a single numeric time variable.")
       data_weights <- as.vector(integrationWeights(X1 = response, time, id = id))
       w <- w * data_weights
     }

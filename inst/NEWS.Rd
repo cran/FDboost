@@ -1,6 +1,17 @@
 \name{NEWS}
 \title{News for Package 'FDboost'}
 
+\section{Changes in FDboost version 0.3-4 (2020-08-31)}{
+  \subsection{Bug-fixes}{
+    \itemize{
+    \item Fix predict() for bsignal with newdata and the functional covariate 
+    given as numeric matrix, raised in 
+    \href{https://github.com/boost-R/FDboost/issues/17}{#17}
+    \item Deprecated argument \code{LINPACK} in \code{solve} removed.
+    }
+    }
+}
+
 \section{Changes in FDboost version 0.3-3 (2020-06-13)}{
 \subsection{New feature}{
 \itemize{

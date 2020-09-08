@@ -472,8 +472,7 @@ bl_lin_matrix_a <- function(blg, Xfun, args) {
         if (constr)
           return( mboost_intern(X, as(XtX, "matrix"), Y, fun = "nnls2D") )
         XWY <- crossprod(X$X1, Y) %*% X$X2
-        solve(XtX, matrix(as(XWY, "matrix"), ncol = 1),
-              LINPACK = FALSE)
+        solve(XtX, matrix(as(XWY, "matrix"), ncol = 1))
       }
     }
     
@@ -678,7 +677,7 @@ bl_lin_matrix_a <- function(blg, Xfun, args) {
 #' ## ...
 #'                 
 #' ## compare estimated coefficients
-#' \dontrun{
+#' \donttest{
 #' par(mfrow=c(4, 2))
 #' plot(mod1, which = 1)
 #' plot(mod1a, which = 1)
