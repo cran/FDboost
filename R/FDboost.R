@@ -37,7 +37,7 @@
 #' @param numInt integration scheme for the integration of the loss function.
 #' One of \code{c("equal", "Riemann")} meaning equal weights of 1 or 
 #' trapezoidal Riemann weights.
-#' Alternatively a vector of length \code{nrow(response)} containing  
+#' Alternatively a vector of length \code{ncol(response)} containing  
 #' positive weights can be specified.
 #' @param data a data frame or list containing the variables in the model.
 #' @param weights only for internal use to specify resampling weights;
@@ -431,8 +431,8 @@
 #' @import methods Matrix mboost
 #' @importFrom grDevices heat.colors rgb
 #' @importFrom graphics abline barplot contour legend lines matplot par persp plot points
-#' @importFrom utils getS3method packageDescription
-#' @importFrom stats approx as.formula coef complete.cases fitted formula lm median model.matrix model.weights na.omit predict quantile sd terms.formula variable.names 
+#' @importFrom utils relist getS3method packageDescription
+#' @importFrom stats setNames approx as.formula coef complete.cases fitted formula lm median model.matrix model.weights na.omit predict quantile sd terms.formula variable.names 
 #' @importFrom gamboostLSS GaussianLSS GaussianMu GaussianSigma make.grid cvrisk.mboostLSS mboostLSS_fit
 #' @importFrom stabs stabsel stabsel_parameters 
 #' @importFrom splines bs splineDesign
@@ -471,8 +471,8 @@ FDboost <- function(formula,          ### response ~ xvars
   }
   
   ## check formulas
-  if(class(try(id)) == "try-error") stop("id must either be NULL or a formula object.")
-  if(missing(timeformula) || class(try(timeformula)) == "try-error") 
+  if(inherits(try(id), "try-error")) stop("id must either be NULL or a formula object.")
+  if(missing(timeformula) || inherits(try(timeformula),  "try-error")) 
     stop("timeformula must either be NULL or a formula object.")
     stopifnot(class(formula) == "formula")
   if(!is.null(timeformula)) stopifnot(class(timeformula) == "formula")
@@ -555,7 +555,7 @@ FDboost <- function(formula,          ### response ~ xvars
 
   }
   
-  if(scalarResponse & numInt != "equal") 
+  if(scalarResponse & !identical(numInt,"equal")) 
     stop("Integration weights numInt must be set to 'equal' for scalar response.")
   
   ## extract time(s) from timeformula 
@@ -817,7 +817,7 @@ FDboost <- function(formula,          ### response ~ xvars
     }else{
       bl_df <- vector("list", length(tmp))
       bl_df[equalBrackets] <- lapply(tmp[equalBrackets], function(x) try(get_df(x)))
-      bl_df <- unlist(bl_df[equalBrackets & (!sapply(bl_df, class) %in% "try-error")])
+      bl_df <- unlist(bl_df[equalBrackets & (!sapply(bl_df, function(x) inherits(x,  "try-error")))])
       #print(bl_df)
       
       if( !is.null(bl_df) && any(abs(bl_df - bl_df[1]) > .Machine$double.eps * 10^10) ){
@@ -948,10 +948,8 @@ FDboost <- function(formula,          ### response ~ xvars
         length(numInt) == length(time)
     if(!.numInt_len_check) 
       stop("Length of integration weights and time vector are not equal.")
-    weights <- weights * numInt
     data_weights <- numInt
     if(!is.null(ydim)){ ## only blow up for array model
-      w <- rep(weights, each = nr)
       data_weights <- rep(data_weights, each = nr)
     }
   }else{
@@ -960,9 +958,9 @@ FDboost <- function(formula,          ### response ~ xvars
       if(!is.numeric(time)) 
         stop("Riemann integration weights only implemented for a single numeric time variable.")
       data_weights <- as.vector(integrationWeights(X1 = response, time, id = id))
-      w <- w * data_weights
     }
   }
+  w <- w * data_weights
   
   ### set weights of missing values to 0
   if(sum(is.na(dresponse)) > 0){
@@ -1068,7 +1066,7 @@ FDboost <- function(formula,          ### response ~ xvars
                             silent = offset_control$silent )
         }
         
-        if(any(class(modOffset) == "try-error")){
+        if(inherits(modOffset, "try-error")){
           warning(paste("Could not fit the smooth offset by adaptive splines (default), use a simple spline expansion with 5 df instead.",
                         if(offset_control$cyclic) "This offset is not cyclic!"))
           if(round(length(time)/2) < 8) warning("Most likely because of too few time-points.")
@@ -1123,7 +1121,7 @@ FDboost <- function(formula,          ### response ~ xvars
                             silent = offset_control$silent )
         }
         
-        if(any(class(modOffset) == "try-error")){
+        if(inherits(modOffset, "try-error")){
           warning(paste("Could not fit the smooth offset by adaptive splines (default), use a simple spline expansion with 5 df instead.",
                         if(offset_control$cyclic) "This offset is not cyclic!"))
           if(round(length(time)/2) < 8) warning("Most likely because of too few time-points.")

@@ -573,7 +573,7 @@ coef.FDboost <- function(object, raw = FALSE, which = NULL,
     if(is.null(which)) which <- 1:length(object$baselearner)
     
     ## special case of ~1 intercept specification with scalar response
-    if( class(object)[1] == "FDboostScalar" && 
+    if( inherits(object, "FDboostScalar") && 
         any(which == 1) && 
         length(object$coef(which = 1)[[1]]) == 1 ){
       ret$intercept <- object$coef(which = 1)[[1]]
@@ -801,7 +801,7 @@ coef.FDboost <- function(object, raw = FALSE, which = NULL,
           
           if(trm$dim == 2){
             
-            if("FDboostScalar" %in% class(object)){ ### scalar response 
+            if(inherits(object, "FDboostScalar")){ ### scalar response 
               position_time <- 2
               y <- yg <- 1
               varnms <- c(varnms[1], "ONEtime", varnms[2])
@@ -973,7 +973,7 @@ coef.FDboost <- function(object, raw = FALSE, which = NULL,
         
         
         # if %X% was used in combination with factor variables make a list of data-frames
-        if(!any(class(object) == "FDboostLong") && grepl("%X", trm$get_call())){
+        if(!inherits(object, "FDboostLong") && grepl("%X", trm$get_call())){
           dlist <- NULL
 
           ## if %X% was used in combination with factor variables make a list of data-frames
@@ -1183,7 +1183,7 @@ coef.FDboost <- function(object, raw = FALSE, which = NULL,
       
       ## it is necessary to expand the dataframe!
       if(!grepl("bhistx(", trm$get_call(), fixed=TRUE) && 
-         class(object)[1] == "FDboostLong" && !grepl("bconcurrent", trm$get_call())){
+         inherits(object, "FDboostLong") && !grepl("bconcurrent", trm$get_call())){
         #print(attr(d, "varnms"))
         vari <- names(d)[1]
         if(is.factor(d[[vari]])){
@@ -1284,7 +1284,7 @@ coef.FDboost <- function(object, raw = FALSE, which = NULL,
 
     ## short names for the terms, if shortnames() does not work, use the original names
     shrtlbls <- try(unlist(lapply(names(object$baselearner), shortnames)))
-    if(class(shrtlbls)=="try-error") shrtlbls <- names(object$baselearner) 
+    if(inherits(shrtlbls, "try-error")) shrtlbls <- names(object$baselearner) 
     
     ###### just return the data that is used for the prediction
     if(returnData){
@@ -1697,14 +1697,14 @@ plot.FDboost <- function(x, raw = FALSE, rug = TRUE, which = NULL,
       rm(temp)
     }
     
-    if(class(terms)!="list") terms <- list(terms)
+    if(!inherits(terms,"list")) terms <- list(terms)
     if(mstop(x) > 0 && length(which) == 1 && which == 0) terms[[1]] <- offset
     if(length(which) == 1 && length(terms[[1]]) == 1 && terms[[1]] == 0){ terms[[1]] <- rep(0, l=length(x$yind)) }
     
     #if(length(which)==1 && !any(class(x)=="FDboostLong")) terms <- list(terms) 
     
     shrtlbls <- try(coef(x, which=which, computeCoef=FALSE))# get short names
-    if(class(shrtlbls) == "try-error"){
+    if(inherits(shrtlbls, "try-error")){
       shrtlbls <- names(x$baselearner)[which[which!=0]]
       if(0 %in% which) shrtlbls <- c("offset", which)
     }
