@@ -121,7 +121,7 @@ mod <- FDboost(l10precip ~ 1 + bolsc(region, df = 4) +
 mod <- mod[75]
 
   #### create folds for 3-fold bootstrap: one weight for each curve
-  set.seed(123)
+  set.seed(124)
   folds_bs <- cv(weights = rep(1, mod$ydim[1]), type = "bootstrap", B = 3)
 
   ## compute out-of-bag risk on the 3 folds for 1 to 75 boosting iterations  
@@ -137,7 +137,7 @@ mod <- mod[75]
   cvr3 <- cvrisk(mod, folds = folds_bs_long, grid = 1:75)
 
   ## plot the out-of-bag risk
-  par(mfrow = c(1,3))
+  oldpar <- par(mfrow = c(1,3))
   plot(cvr); legend("topright", lty=2, paste(mstop(cvr)))
   plot(cvr2)
   plot(cvr3); legend("topright", lty=2, paste(mstop(cvr3)))
@@ -145,7 +145,7 @@ mod <- mod[75]
   ## plot the estimated coefficients per fold
   ## more meaningful for higher number of folds, e.g., B = 100 
   par(mfrow = c(2,2))
-  plotPredCoef(cvr2, terms = FALSE, which = 2)
+  plotPredCoef(cvr2, terms = FALSE, which = 1)
   plotPredCoef(cvr2, terms = FALSE, which = 3)
   
   ## compute out-of-bag risk and predictions for leaving-one-curve-out cross-validation
@@ -156,6 +156,8 @@ mod <- mod[75]
   plotPredCoef(cvr_jackknife, which = 3) 
   ## plot coefficients per fold for 2nd effect
   plotPredCoef(cvr_jackknife, which = 2, terms = FALSE)
+  
+  par(oldpar)
 
 }
 }

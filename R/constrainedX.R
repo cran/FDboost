@@ -20,6 +20,9 @@
 #' where \code{1} induces a global intercept and \code{x1}, \code{x2} are factor variables, 
 #' see Ruegamer et al. (2018).  
 #' 
+#' @return An object of class \code{blg} (base-learner generator) with a \code{dpp} function 
+#' as for other \code{\link[mboost:baselearners]{baselearners}}.
+#' 
 #' @references 
 #' Brockhaus, S., Scheipl, F., Hothorn, T. and Greven, S. (2015): 
 #' The functional linear array model. Statistical Modelling, 15(3), 279-300.
@@ -611,8 +614,10 @@ bl_lin_matrix_a <- function(blg, Xfun, args) {
 #' \code{\%Xa0\%} computes like \code{\%X\%} the row tensor product of two base-learners, 
 #' with the difference that it sets the penalty for one direction to zero. 
 #' Thus, \code{\%Xa0\%} behaves to \code{\%X\%} analogously like \code{\%A0\%} to \code{\%O\%}. 
-#'  
 #' 
+#' @return An object of class \code{blg} (base-learner generator) with a \code{dpp} function 
+#' as for other \code{\link[mboost:baselearners]{baselearners}}.
+#'  
 #' @references 
 #' Brockhaus, S., Scheipl, F., Hothorn, T. and Greven, S. (2015): 
 #' The functional linear array model. Statistical Modelling, 15(3), 279-300. 
@@ -678,7 +683,7 @@ bl_lin_matrix_a <- function(blg, Xfun, args) {
 #'                 
 #' ## compare estimated coefficients
 #' \donttest{
-#' par(mfrow=c(4, 2))
+#' oldpar <- par(mfrow=c(4, 2))
 #' plot(mod1, which = 1)
 #' plot(mod1a, which = 1)
 #' plot(mod1, which = 2)
@@ -687,6 +692,7 @@ bl_lin_matrix_a <- function(blg, Xfun, args) {
 #' plot(mod1a, which = 3)
 #' funplot(mod1$yind, predict(mod1, which=4))
 #' funplot(mod1$yind, predict(mod1a, which=4))
+#' par(oldpar)
 #' }
 #' 
 #' @name anisotropic_Kronecker

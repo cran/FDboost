@@ -18,6 +18,10 @@ bl1 \%Xa0\% bl2
 
 \item{bl2}{base-learner 2, e.g. \code{bbs(x2)}}
 }
+\value{
+An object of class \code{blg} (base-learner generator) with a \code{dpp} function 
+as for other \code{\link[mboost:baselearners]{baselearners}}.
+}
 \description{
 Kronecker product or row tensor product of two base-learners allowing for anisotropic penalties. 
 For the Kronecker product, \code{\%A\%} works in the general case, \code{\%A0\%} for the special case where 
@@ -131,7 +135,7 @@ mod1k0$formulaMboost
                 
 ## compare estimated coefficients
 \donttest{
-par(mfrow=c(4, 2))
+oldpar <- par(mfrow=c(4, 2))
 plot(mod1, which = 1)
 plot(mod1a, which = 1)
 plot(mod1, which = 2)
@@ -140,6 +144,7 @@ plot(mod1, which = 3)
 plot(mod1a, which = 3)
 funplot(mod1$yind, predict(mod1, which=4))
 funplot(mod1$yind, predict(mod1a, which=4))
+par(oldpar)
 }
 
 }

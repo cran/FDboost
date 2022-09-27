@@ -143,9 +143,10 @@
 #' 
 #' \donttest{
 #'   ## plot the out-of-bag risk
-#'   par(mfrow = c(1,3))
+#'   oldpar <- par(mfrow = c(1,3))
 #'   plot(cvr); legend("topright", lty=2, paste(mstop(cvr)))
 #'   plot(cvr3); legend("topright", lty=2, paste(mstop(cvr3)))
+#'   par(oldpar)
 #' }
 #' 
 #'}
@@ -459,9 +460,10 @@ applyFolds <- function(object, folds = cv(rep(1, length(unique(object$id))), typ
         }
         
         # compute risk with integration weights like in FDboost::validateFDboost
-        risk <- sapply(grid, function(g){riskfct( response_oobweights, 
-                                                  withCallingHandlers(predict(mod[g], newdata = dat_oobweights, toFDboost = FALSE), warning = h2), 
-                                                  w = oobwstand )}) ## oobwstand[oobweights[object$id] != 0 ]
+        risk <- sapply(grid, function(g){riskfct( 
+          response_oobweights, 
+          withCallingHandlers(predict(mod[g], newdata = dat_oobweights, toFDboost = FALSE), warning = h2), 
+          w = oobwstand )}) ## oobwstand[oobweights[object$id] != 0 ]
         
       }else{
         
@@ -473,9 +475,10 @@ applyFolds <- function(object, folds = cv(rep(1, length(unique(object$id))), typ
         }
         
         # compute risk with integration weights like in FDboost::validateFDboost
-        risk <- sapply(grid, function(g){riskfct( response_oobweights, 
-                                                  withCallingHandlers(predict(mod[g], newdata = dat_oobweights, toFDboost = FALSE), warning = h2), 
-                                                  w = oobwstand[oobweights != 0 ])})
+        risk <- sapply(grid, function(g){riskfct( 
+          response_oobweights, 
+          withCallingHandlers(predict(mod[g], newdata = dat_oobweights, toFDboost = FALSE), warning = h2), 
+          w = oobwstand[oobweights != 0 ])})
         
       }
 
@@ -643,7 +646,7 @@ applyFolds <- function(object, folds = cv(rep(1, length(unique(object$id))), typ
 #' mod <- mod[75]
 #' 
 #'   #### create folds for 3-fold bootstrap: one weight for each curve
-#'   set.seed(123)
+#'   set.seed(124)
 #'   folds_bs <- cv(weights = rep(1, mod$ydim[1]), type = "bootstrap", B = 3)
 #' 
 #'   ## compute out-of-bag risk on the 3 folds for 1 to 75 boosting iterations  
@@ -659,7 +662,7 @@ applyFolds <- function(object, folds = cv(rep(1, length(unique(object$id))), typ
 #'   cvr3 <- cvrisk(mod, folds = folds_bs_long, grid = 1:75)
 #' 
 #'   ## plot the out-of-bag risk
-#'   par(mfrow = c(1,3))
+#'   oldpar <- par(mfrow = c(1,3))
 #'   plot(cvr); legend("topright", lty=2, paste(mstop(cvr)))
 #'   plot(cvr2)
 #'   plot(cvr3); legend("topright", lty=2, paste(mstop(cvr3)))
@@ -667,7 +670,7 @@ applyFolds <- function(object, folds = cv(rep(1, length(unique(object$id))), typ
 #'   ## plot the estimated coefficients per fold
 #'   ## more meaningful for higher number of folds, e.g., B = 100 
 #'   par(mfrow = c(2,2))
-#'   plotPredCoef(cvr2, terms = FALSE, which = 2)
+#'   plotPredCoef(cvr2, terms = FALSE, which = 1)
 #'   plotPredCoef(cvr2, terms = FALSE, which = 3)
 #'   
 #'   ## compute out-of-bag risk and predictions for leaving-one-curve-out cross-validation
@@ -678,6 +681,8 @@ applyFolds <- function(object, folds = cv(rep(1, length(unique(object$id))), typ
 #'   plotPredCoef(cvr_jackknife, which = 3) 
 #'   ## plot coefficients per fold for 2nd effect
 #'   plotPredCoef(cvr_jackknife, which = 2, terms = FALSE)
+#'   
+#'   par(oldpar)
 #' 
 #'}
 #'}
@@ -1199,6 +1204,8 @@ print.validateFDboost <- function(x, ...){
 #' and residuals as determined by \code{validateFDboost}. The function \code{plotPredCoef} plots the 
 #' coefficients that were estimated in the folds - only possible if the argument getCoefCV is \code{TRUE} in 
 #' the call to \code{validateFDboost}. 
+#' 
+#' @return No return value (plot method) or the object itself (print method)
 #' 
 #' @aliases mstop.validateFDboost
 #' 
