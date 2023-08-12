@@ -1,8 +1,8 @@
 Package: FDboost
 Type: Package
 Title: Boosting Functional Regression Models
-Version: 1.1-1
-Date: 2022-09-08
+Version: 1.1-2
+Date: 2023-08-12
 Authors@R: c(person("Sarah", "Brockhaus", role = "aut",
 		            email = "Sarah.Brockhaus@stat.uni-muenchen.de"), 
 			 person("David", "Ruegamer", role = c("aut", "cre"), 
@@ -21,13 +21,13 @@ Imports: methods, graphics, grDevices, utils, stats, Matrix,
         gamboostLSS (>= 2.0-0), stabs, mgcv, MASS, zoo
 Suggests: fda, fields, ggplot2, maps, mapdata, knitr, refund, testthat
 License: GPL-2
-Packaged: 2022-09-26 20:18:38 UTC; david
+Packaged: 2023-08-12 14:51:20 UTC; david
 Collate: 'aaa.R' 'FDboost-package.R' 'FDboost.R' 'baselearners.R'
         'baselearnersX.R' 'bootstrapCIs.R' 'clr_functions.R'
         'constrainedX.R' 'crossvalidation.R' 'factorize.R'
         'FDboostLSS.R' 'hmatrix.R' 'methods.R' 'stabsel.R'
         'utilityFunctions.R'
-RoxygenNote: 7.2.1
+RoxygenNote: 7.2.3
 Encoding: UTF-8
 BugReports: https://github.com/boost-R/FDboost/issues
 URL: https://github.com/boost-R/FDboost
@@ -39,4 +39,4 @@ Author: Sarah Brockhaus [aut],
   Torsten Hothorn [ctb],
   with contributions by many others (see inst/CONTRIBUTIONS) [ctb]
 Repository: CRAN
-Date/Publication: 2022-09-27 09:20:05 UTC
+Date/Publication: 2023-08-12 15:20:09 UTC
